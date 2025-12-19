@@ -1,9 +1,9 @@
 # Splatlogger
-Python tool for logging the info of players you've played with in Splatoon matches using TCPGecko.
+CLI Python program for logging the info of players you've played with in Splatoon matches using TCPGecko.
 
-To use run ```python /Splatlogger/main.py x.x.x.x args``` where "x.x.x.x" is your Wii U's LAN IP address and "args" are any additional arguments.
+To use run ```python /path/to/Splatlogger/main.py x.x.x.x args``` where "x.x.x.x" is your Wii U's LAN IP address and "args" are any additional arguments.
 
-Running without any arguments will simply print basic player information to the console.
+Running with just the IP address will print player PIDs, PNIDs and names to the console without logging.
 
 Additional arguments:
 
@@ -26,4 +26,4 @@ Notes:
 ## Credits
 [pyGecko](https://github.com/wiiudev/pyGecko) authors - tcpgecko.py and common.py
 
-Everyone who contributed to [PNIDGrab](https://github.com/JerrySM64/PNIDGrab) and other similar PID grabbing tools as this is partly based on those.
+Everyone who contributed to [PNIDGrab](https://github.com/JerrySM64/PNIDGrab) and other similar PID grabbers as this is partly based on those.
