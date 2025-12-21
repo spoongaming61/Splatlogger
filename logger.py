@@ -9,9 +9,10 @@ import names
 
 
 class Logger:
-    def __init__(self, static_mem_adr, scene_mgr_adr):
+    def __init__(self, gecko, static_mem_adr, scene_mgr_adr):
         self.date = datetime.now()
         self.regions = json.loads(open("regions.json").read())
+        self.gecko = gecko
         self.static_mem_adr = static_mem_adr
         self.scene_mgr_adr = scene_mgr_adr
         self.align = 0
@@ -29,18 +30,18 @@ class Logger:
             f.write(f"Splatlogger log from {self.date.strftime('%Y-%m-%d %H:%M:%S')}\n")
 
 
-    def new_match(self, gecko, auto_logging, session_adr, count):
-        match_hour = int.from_bytes(gecko.readmem(self.static_mem_adr + 0x237, 1), "big")
-        versus_mode = int.from_bytes(gecko.readmem(self.static_mem_adr + 0x23B, 1), "big")
-        versus_rule = int.from_bytes(gecko.readmem(self.static_mem_adr + 0x23F, 1), "big")
-        stage = gecko.readmem(self.static_mem_adr + 0x28, 32).decode("utf-8").split("\u0000")[0]
+    def new_match(self, auto_logging, session_adr, count):
+        match_hour = int.from_bytes(self.gecko.readmem(self.static_mem_adr + 0x237, 1), "big")
+        versus_mode = int.from_bytes(self.gecko.readmem(self.static_mem_adr + 0x23B, 1), "big")
+        versus_rule = int.from_bytes(self.gecko.readmem(self.static_mem_adr + 0x23F, 1), "big")
+        stage = self.gecko.readmem(self.static_mem_adr + 0x28, 32).decode("utf-8").split("\u0000")[0]
 
         if auto_logging:
             self.align = 2
 
             if session_adr != 0:
-                session_id_idx = int.from_bytes(gecko.readmem(session_adr + 0xBD, 1), "big")
-                self.session_id = int.from_bytes(gecko.readmem(session_adr + session_id_idx * 4 + 0xCC, 4), "big")
+                session_id_idx = int.from_bytes(self.gecko.readmem(session_adr + 0xBD, 1), "big")
+                self.session_id = int.from_bytes(self.gecko.readmem(session_adr + session_id_idx * 4 + 0xCC, 4), "big")
             else:
                 self.session_id = 0
 
@@ -61,8 +62,8 @@ class Logger:
                 f.write(match_info)
         else:
             if session_adr != 0:
-                session_id_idx = int.from_bytes(gecko.readmem(session_adr + 0xBD, 1), "big")
-                self.session_id = int.from_bytes(gecko.readmem(session_adr + session_id_idx * 4 + 0xCC, 4), "big")
+                session_id_idx = int.from_bytes(self.gecko.readmem(session_adr + 0xBD, 1), "big")
+                self.session_id = int.from_bytes(self.gecko.readmem(session_adr + session_id_idx * 4 + 0xCC, 4), "big")
             else:
                 self.session_id = 0
 
@@ -81,7 +82,7 @@ class Logger:
                 f.write(match_info)
 
 
-    def log(self, gecko, log_stats, player_dict):
+    def log(self, log_stats, player_dict):
         region = int.from_bytes(player_dict["PlayerInfo"][0x2C:0x30], "big")
         team = int.from_bytes(player_dict["PlayerInfo"][0x33:0x34], "big")
         gender = int.from_bytes(player_dict["PlayerInfo"][0x37:0x38], "big")
@@ -126,17 +127,17 @@ class Logger:
             f.write(player_log)
 
         if log_stats:
-            stats = gecko.readmem(0x107AF944, 292)  # A bunch of data including player stats. I'm not exactly sure what this is, but it works.
+            stats = self.gecko.readmem(0x107AF944, 292)  # A bunch of data including player stats. I'm not exactly sure what this is, but it works.
 
             if player_dict["Number"] == 1:  # Buffer player 1 data until stats are updated.
                 while (
-                    gecko.readmem(0x107AF944, 292) == stats and
-                    int.from_bytes(gecko.readmem(self.scene_mgr_adr + 0x162, 2), "big") == 7  # Fallback to scene change in case the match is not finished.
+                    self.gecko.readmem(0x107AF944, 292) == stats and
+                    int.from_bytes(self.gecko.readmem(self.scene_mgr_adr + 0x162, 2), "big") == 7  # Fallback to scene change in case the match is not finished.
                 ):
                     time.sleep(10)
 
-            winning_team = int.from_bytes(gecko.readmem(0x107AF917, 1), "big")
-            stats = gecko.readmem(0x107AF944, 292)  # Read the updated stats again.
+            winning_team = int.from_bytes(self.gecko.readmem(0x107AF917, 1), "big")
+            stats = self.gecko.readmem(0x107AF944, 292)  # Read the updated stats again.
             offset = (player_dict["Number"] - 1) * 0x20
             points = int.from_bytes(stats[offset + 0x3A:offset + 0x3C], "big")
             kills = int.from_bytes(stats[offset + 0x3E:offset + 0x40], "big")

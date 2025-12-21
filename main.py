@@ -15,7 +15,7 @@ def main():
     epic_fail = False
 
     if not auto_logging and logging_enabled:
-        logger.new_match(gecko, auto_logging, session_adr, 1)
+        logger.new_match(auto_logging, session_adr, 1)
 
     if not silent_logging: print()
 
@@ -67,7 +67,7 @@ def main():
                 epic_fail = True
 
             if logging_enabled:
-                logger.log(gecko, log_stats, player_dict)
+                logger.log(log_stats, player_dict)
 
             if not silent_logging:
                 print(
@@ -102,7 +102,7 @@ if __name__ == "__main__":
     auto_logging = False
     logger = None
 
-    print("Splatlogger v1.0 by Shadow Doggo\n")
+    print("Splatlogger v1.1 by Shadow Doggo\n")
 
     try:
         gecko = TCPGecko(sys.argv[1])
@@ -123,7 +123,7 @@ if __name__ == "__main__":
     scene_mgr_adr = int.from_bytes(gecko.readmem(SCENE_MGR_PTR, 4), "big")
     player_info_ary_adr = int.from_bytes(gecko.readmem(static_mem_adr + 0x10, 4), "big")
 
-    VALID_ARGS = ["log", "silent", "stats", "auto"]
+    VALID_ARGS = ["log", "silent", "stats", "auto", "auto-latest"]
 
     for arg in sys.argv[2:]:
         if arg not in VALID_ARGS:
@@ -131,7 +131,7 @@ if __name__ == "__main__":
 
     if len(sys.argv) > 2 and "log" in sys.argv[2:]:
         logging_enabled = True
-        logger = Logger(static_mem_adr, scene_mgr_adr)
+        logger = Logger(gecko, static_mem_adr, scene_mgr_adr)
         logger.create_log()
 
     if len(sys.argv) > 2 and "silent" in sys.argv[2:]:
@@ -140,12 +140,12 @@ if __name__ == "__main__":
     if len(sys.argv) > 2 and "stats" in sys.argv[2:]:
         log_stats = True
 
-    if len(sys.argv) > 2 and "auto" in sys.argv[2:]:
+    if len(sys.argv) > 2 and "auto" in sys.argv[2:] or "auto-latest" in sys.argv[2:]:
         print("\nAuto logging enabled")
 
         if not logging_enabled:
             logging_enabled = True
-            logger = Logger(static_mem_adr, scene_mgr_adr)
+            logger = Logger(gecko, static_mem_adr, scene_mgr_adr)
             logger.create_log()
 
         auto_logging = True
@@ -165,7 +165,10 @@ if __name__ == "__main__":
                 session_adr = int.from_bytes(gecko.readmem(SESSION_PTR, 4), "big")
                 count += 1
 
-                logger.new_match(gecko, auto_logging, session_adr, count)
+                if "auto-latest" in sys.argv[2:]:
+                    logger.create_log()
+
+                logger.new_match(auto_logging, session_adr, count)
 
                 if not silent_logging:
                     print(f"\nMatch {count}")

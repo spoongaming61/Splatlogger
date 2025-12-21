@@ -15,6 +15,8 @@ Additional arguments:
 
 * ```auto``` - Enable auto logging. When enabled will automatically log every match you play.
 
+* ```auto-latest``` - Same as above but will save only the latest match you played.
+
 Notes:
 
 * Only Python 3.11 and newer has been tested.
