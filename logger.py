@@ -1,7 +1,6 @@
 # Splatlogger (c) 2025 Shadow Doggo.
 
 import os
-import json
 import time
 from datetime import datetime
 
@@ -11,12 +10,12 @@ import names
 class Logger:
     def __init__(self, gecko, static_mem_adr, scene_mgr_adr):
         self.date = datetime.now()
-        self.regions = json.loads(open("regions.json").read())
         self.gecko = gecko
         self.static_mem_adr = static_mem_adr
         self.scene_mgr_adr = scene_mgr_adr
         self.align = 0
         self.session_id = 0
+        self.versus_rule = 0
 
 
     def create_log(self):
@@ -33,7 +32,7 @@ class Logger:
     def new_match(self, auto_logging, session_adr, count):
         match_hour = int.from_bytes(self.gecko.readmem(self.static_mem_adr + 0x237, 1), "big")
         versus_mode = int.from_bytes(self.gecko.readmem(self.static_mem_adr + 0x23B, 1), "big")
-        versus_rule = int.from_bytes(self.gecko.readmem(self.static_mem_adr + 0x23F, 1), "big")
+        self.versus_rule = int.from_bytes(self.gecko.readmem(self.static_mem_adr + 0x23F, 1), "big")
         stage = self.gecko.readmem(self.static_mem_adr + 0x28, 32).decode("utf-8").split("\u0000")[0]
 
         if auto_logging:
@@ -46,13 +45,13 @@ class Logger:
                 self.session_id = 0
 
             match_info = (
-                    f"\n[Match {count}]\n\n"
+                    f"\n[Match {count}]\n"
                     f"{' ' * self.align}Time: {datetime.now().strftime('%H:%M:%S')}\n"
                     f"{' ' * self.align}Session ID: {self.session_id:X} ({self.session_id})\n"
                     f"{' ' * self.align}Versus mode: {names.VERSUS_MODE_NAME.get(versus_mode, 'Unknown')}\n"
-                    f"{' ' * self.align}Versus rule: {names.VERSUS_RULE_NAME.get(versus_rule, 'Unknown')}\n"
-                    f"{' ' * self.align}Day/Night: {names.MATCH_HOUR_NAME.get(match_hour, 'Unknown')}\n"
+                    f"{' ' * self.align}Versus rule: {names.VERSUS_RULE_NAME.get(self.versus_rule, 'Unknown')}\n"
                     f"{' ' * self.align}Stage: {names.STAGE_NAME.get(stage, 'Unknown')}\n"
+                    f"{' ' * self.align}Day/Night: {names.MATCH_HOUR_NAME.get(match_hour, 'Unknown')}\n"
                 )
 
             with open(
@@ -70,9 +69,9 @@ class Logger:
             match_info = (
                     f"{' ' * self.align}\nSession ID: {self.session_id:X} ({self.session_id})\n"
                     f"{' ' * self.align}Versus mode: {names.VERSUS_MODE_NAME.get(versus_mode, 'Unknown')}\n"
-                    f"{' ' * self.align}Versus rule: {names.VERSUS_RULE_NAME.get(versus_rule, 'Unknown')}\n"
-                    f"{' ' * self.align}Day/Night: {names.MATCH_HOUR_NAME.get(match_hour, 'Unknown')}\n"
+                    f"{' ' * self.align}Versus rule: {names.VERSUS_RULE_NAME.get(self.versus_rule, 'Unknown')}\n"
                     f"{' ' * self.align}Stage: {names.STAGE_NAME.get(stage, 'Unknown')}\n"
+                    f"{' ' * self.align}Day/Night: {names.MATCH_HOUR_NAME.get(match_hour, 'Unknown')}\n"
                 )
 
             with open(
@@ -98,26 +97,22 @@ class Logger:
         special_weapon = int.from_bytes(player_dict["PlayerInfo"][0x4D:0x50], "big")
 
         player_log = (
-            f"\n{' ' * self.align}[Player {player_dict['Number']}]\n\n"
-            f"{' ' * (self.align + 2)}Name: {player_dict['Name']}\n"
+            f"\n{' ' * self.align}[Player {player_dict['Number']}]\n"
+            f"{' ' * (self.align + 2)}Name: {player_dict['Name']} "
+            f"{'(' + player_dict['Mii name'] + ')' if player_dict['Name'] != player_dict['Mii name'] else ''}\n"
             f"{' ' * (self.align + 2)}PID: {player_dict['PID']:X} ({player_dict['PID']})\n"
             f"{' ' * (self.align + 2)}PNID: {player_dict['PNID']}\n"
-            f"{' ' * (self.align + 2)}Mii name: {player_dict['Mii name']}\n"
-            f"{' ' * (self.align + 2)}Mii icon: {player_dict['Mii icon']}\n"
-            f"{' ' * (self.align + 2)}Country: {self.get_region(region)[1]} ({self.get_region(region)[0]})\n"
-            f"{' ' * (self.align + 2)}Region: {self.get_region(region)[2]} ({region})\n"
+            f"{' ' * (self.align + 2)}Region: {region}\n"
             f"{' ' * (self.align + 2)}Team: {names.TEAM_NAME.get(team, 'Unknown')} ({team})\n"
-            f"{' ' * (self.align + 2)}Gender: {names.GENDER_NAME.get(gender, 'Unknown')} ({gender})\n"
-            f"{' ' * (self.align + 2)}Skin tone: {skin_tone}\n"
-            f"{' ' * (self.align + 2)}Eye color: {names.EYE_COLOR_NAME.get(eye_color, 'Unknown')} ({eye_color})\n"
-            f"{' ' * (self.align + 2)}Shoes: {names.SHOES_NAME.get(shoes, 'Unknown')} ({shoes})\n"
-            f"{' ' * (self.align + 2)}Clothes: {names.CLOTHES_NAME.get(clothes, 'Unknown')} ({clothes})\n"
-            f"{' ' * (self.align + 2)}Headgear: {names.HEADGEAR_NAME.get(headgear, 'Unknown')} ({headgear})\n"
             f"{' ' * (self.align + 2)}Level: {level}\n"
             f"{' ' * (self.align + 2)}Rank: {names.RANK_NAME.get(rank, 'Unknown')} ({rank})\n"
-            f"{' ' * (self.align + 2)}Weapon: {names.WEAPON_NAME.get(weapon, 'Unknown')} ({weapon})\n"
-            f"{' ' * (self.align + 2)}Sub weapon: {names.SUB_WEAPON_NAME.get(sub_weapon, 'Unknown')} ({sub_weapon})\n"
-            f"{' ' * (self.align + 2)}Special weapon: {names.SPECIAL_WEAPON_NAME.get(special_weapon, 'Unknown')} ({special_weapon})\n"
+            f"{' ' * (self.align + 2)}Appearance: Gender: {names.GENDER_NAME.get(gender, 'Unknown')} ({gender}),"
+            f" Skin tone: {skin_tone}, Eye color: {names.EYE_COLOR_NAME.get(eye_color, 'Unknown')} ({eye_color})\n"
+            f"{' ' * (self.align + 2)}Gear: Headgear: {names.HEADGEAR_NAME.get(headgear, 'Unknown')} ({headgear}),"
+            f" Clothes: {names.CLOTHES_NAME.get(clothes, 'Unknown')}, Shoes: {names.SHOES_NAME.get(shoes, 'Unknown')} ({shoes})\n"
+            f"{' ' * (self.align + 2)}Weapons: Main: {names.WEAPON_NAME.get(weapon, 'Unknown')} ({weapon}),"
+            f" Sub: {names.SUB_WEAPON_NAME.get(sub_weapon, 'Unknown')} ({sub_weapon}),"
+            f" Special: {names.SPECIAL_WEAPON_NAME.get(special_weapon, 'Unknown')} ({special_weapon})\n"
         )  # Long ass string.
 
         with open(
@@ -142,9 +137,17 @@ class Logger:
             points = int.from_bytes(stats[offset + 0x3A:offset + 0x3C], "big")
             kills = int.from_bytes(stats[offset + 0x3E:offset + 0x40], "big")
             deaths = int.from_bytes(stats[offset + 0x42:offset + 0x44], "big")
+            points_log = ""
+
+            # Only log points in turf war cause in ranked they're the same for all players.
+            if self.versus_rule == 0:
+                if team == winning_team:
+                    points_log = f"{' ' * (self.align + 2)}Points: {points + 1000}p ({points}p w/o win bonus)\n"
+                else:
+                    points_log = f"{' ' * (self.align + 2)}Points: {points}p\n"
 
             player_stats = (
-                f"{' ' * (self.align + 2)}Points: {points}p\n"
+                f"{points_log}"
                 f"{' ' * (self.align + 2)}Kills: {kills}\n"
                 f"{' ' * (self.align + 2)}Deaths: {deaths}\n"
                 f"{' ' * (self.align + 2)}Result: {'Win' if team == winning_team else 'Lose'}\n"
@@ -155,18 +158,3 @@ class Logger:
                 "a", encoding="utf-8"
             ) as f:
                 f.write(player_stats)
-
-
-    def get_region(self, region):
-        for i in self.regions:
-            for j in range(len(i["regions"])):
-                if i["regions"][j]["id"] == region:
-                    return (
-                        i["id"],
-                        i["name"],
-                        i["regions"][j]["name"]
-                        .encode("utf-8", errors="ignore")
-                        .decode("utf-8"),
-                    )
-
-        return "None", "None", "None"

@@ -62,7 +62,6 @@ def main():
                 response = ET.fromstring(urlopen(req).read().decode("utf-8"))
                 player_dict["PNID"] = response[0].find("user_id").text
                 player_dict["Mii name"] = response[0].find("name").text.replace("\n", "").replace("\r", "")  # Always get the real mii name in case a player used name changer.
-                player_dict["Mii icon"] = response[0].find("images").find("image").find("url").text
             except urllib.error.URLError:
                 epic_fail = True
 
@@ -102,7 +101,7 @@ if __name__ == "__main__":
     auto_logging = False
     logger = None
 
-    print("Splatlogger v1.1 by Shadow Doggo\n")
+    print("Splatlogger v1.2 by Shadow Doggo\n")
 
     try:
         gecko = TCPGecko(sys.argv[1])
