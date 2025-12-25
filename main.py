@@ -73,8 +73,8 @@ def main():
                     f"Player {player_num} | "
                     f"PID: {player_dict['PID']:X} ({player_dict['PID']}) {' ' * 16 if player_dict['PID'] == 0 else ''}| "
                     f"PNID: {player_dict['PNID']} {' ' * (16 - len(player_dict['PNID']))}| "
-                    f"Name: {player_dict['Name']} "
-                    f"{'(' + player_dict['Mii name'] + ')' if player_dict['Name'] != player_dict['Mii name'] else ''}"
+                    f"Name: {player_dict['Name']}"
+                    f"{' (' + player_dict['Mii name'] + ')' if player_dict['Name'] != player_dict['Mii name'] else ''}"
                 )
 
     if not silent_logging:
@@ -101,7 +101,7 @@ if __name__ == "__main__":
     auto_logging = False
     logger = None
 
-    print("Splatlogger v1.2 by Shadow Doggo\n")
+    print("Splatlogger v1.3 by Shadow Doggo\n")
 
     try:
         gecko = TCPGecko(sys.argv[1])

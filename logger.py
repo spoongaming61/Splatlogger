@@ -98,8 +98,8 @@ class Logger:
 
         player_log = (
             f"\n{' ' * self.align}[Player {player_dict['Number']}]\n"
-            f"{' ' * (self.align + 2)}Name: {player_dict['Name']} "
-            f"{'(' + player_dict['Mii name'] + ')' if player_dict['Name'] != player_dict['Mii name'] else ''}\n"
+            f"{' ' * (self.align + 2)}Name: {player_dict['Name']}"
+            f"{' (' + player_dict['Mii name'] + ')' if player_dict['Name'] != player_dict['Mii name'] else ''}\n"
             f"{' ' * (self.align + 2)}PID: {player_dict['PID']:X} ({player_dict['PID']})\n"
             f"{' ' * (self.align + 2)}PNID: {player_dict['PNID']}\n"
             f"{' ' * (self.align + 2)}Region: {region}\n"
@@ -109,7 +109,7 @@ class Logger:
             f"{' ' * (self.align + 2)}Appearance: Gender: {names.GENDER_NAME.get(gender, 'Unknown')} ({gender}),"
             f" Skin tone: {skin_tone}, Eye color: {names.EYE_COLOR_NAME.get(eye_color, 'Unknown')} ({eye_color})\n"
             f"{' ' * (self.align + 2)}Gear: Headgear: {names.HEADGEAR_NAME.get(headgear, 'Unknown')} ({headgear}),"
-            f" Clothes: {names.CLOTHES_NAME.get(clothes, 'Unknown')}, Shoes: {names.SHOES_NAME.get(shoes, 'Unknown')} ({shoes})\n"
+            f" Clothes: {names.CLOTHES_NAME.get(clothes, 'Unknown')} ({clothes}), Shoes: {names.SHOES_NAME.get(shoes, 'Unknown')} ({shoes})\n"
             f"{' ' * (self.align + 2)}Weapons: Main: {names.WEAPON_NAME.get(weapon, 'Unknown')} ({weapon}),"
             f" Sub: {names.SUB_WEAPON_NAME.get(sub_weapon, 'Unknown')} ({sub_weapon}),"
             f" Special: {names.SPECIAL_WEAPON_NAME.get(special_weapon, 'Unknown')} ({special_weapon})\n"
@@ -122,39 +122,45 @@ class Logger:
             f.write(player_log)
 
         if log_stats:
+            disconnect = False
             stats = self.gecko.readmem(0x107AF944, 292)  # A bunch of data including player stats. I'm not exactly sure what this is, but it works.
 
-            if player_dict["Number"] == 1:  # Buffer player 1 data until stats are updated.
-                while (
-                    self.gecko.readmem(0x107AF944, 292) == stats and
-                    int.from_bytes(self.gecko.readmem(self.scene_mgr_adr + 0x162, 2), "big") == 7  # Fallback to scene change in case the match is not finished.
-                ):
-                    time.sleep(10)
+            # Buffer player 1 data until stats are updated.
+            if player_dict["Number"] == 1:
+                while self.gecko.readmem(0x107AF944, 292) == stats:
+                    if int.from_bytes(  # Fallback to scene change in case the match is not finished.
+                        self.gecko.readmem(self.scene_mgr_adr + 0x162, 2), "big"
+                        ) != 7:
+                        disconnect = True
+                        break
 
-            winning_team = int.from_bytes(self.gecko.readmem(0x107AF917, 1), "big")
-            stats = self.gecko.readmem(0x107AF944, 292)  # Read the updated stats again.
-            offset = (player_dict["Number"] - 1) * 0x20
-            points = int.from_bytes(stats[offset + 0x3A:offset + 0x3C], "big")
-            kills = int.from_bytes(stats[offset + 0x3E:offset + 0x40], "big")
-            deaths = int.from_bytes(stats[offset + 0x42:offset + 0x44], "big")
-            points_log = ""
+                    time.sleep(5)
 
-            # Only log points in turf war cause in ranked they're the same for all players.
-            if self.versus_rule == 0:
-                if team == winning_team:
-                    points_log = f"{' ' * (self.align + 2)}Points: {points + 1000}p ({points}p w/o win bonus)\n"
-                else:
-                    points_log = f"{' ' * (self.align + 2)}Points: {points}p\n"
+            if not disconnect:
+                winning_team = int.from_bytes(self.gecko.readmem(0x107AF917, 1), "big")
+                stats = self.gecko.readmem(0x107AF944, 292)  # Read the updated stats again.
+                offset = (player_dict["Number"] - 1) * 0x20
+                points = int.from_bytes(stats[offset + 0x3A:offset + 0x3C], "big")
+                kills = int.from_bytes(stats[offset + 0x3E:offset + 0x40], "big")
+                deaths = int.from_bytes(stats[offset + 0x42:offset + 0x44], "big")
+                points_log = ""
 
-            player_stats = (
-                f"{points_log}"
-                f"{' ' * (self.align + 2)}Kills: {kills}\n"
-                f"{' ' * (self.align + 2)}Deaths: {deaths}\n"
-                f"{' ' * (self.align + 2)}Result: {'Win' if team == winning_team else 'Lose'}\n"
-            )
+                # Only log points in turf war cause in ranked they're the same for all players.
+                if self.versus_rule == 0:
+                    if team == winning_team:
+                        points_log = f"{' ' * (self.align + 2)}Points: {points + 1000}p ({points}p w/o win bonus)\n"
+                    else:
+                        points_log = f"{' ' * (self.align + 2)}Points: {points}p\n"
 
-            with open(
-                f"./logs/{self.date.strftime('%Y-%m-%d')}/{self.date.strftime('%Y-%m-%d %H-%M-%S')} log.txt",
-                "a", encoding="utf-8"
-            ) as f:
-                f.write(player_stats)
+                player_stats = (
+                    f"{points_log}"
+                    f"{' ' * (self.align + 2)}Kills: {kills}\n"
+                    f"{' ' * (self.align + 2)}Deaths: {deaths}\n"
+                    f"{' ' * (self.align + 2)}Result: {'Win' if team == winning_team else 'Lose'}\n"
+                )
+
+                with open(
+                    f"./logs/{self.date.strftime('%Y-%m-%d')}/{self.date.strftime('%Y-%m-%d %H-%M-%S')} log.txt",
+                    "a", encoding="utf-8"
+                ) as f:
+                    f.write(player_stats)
