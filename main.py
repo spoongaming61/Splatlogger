@@ -35,15 +35,17 @@ def main():
     for player_num in range(1, player_count + 1):
         player_idx = (player_num - 1) * 0x4
         player_info_adr = int.from_bytes(gecko.readmem(player_info_ary_adr + player_idx, 4), "big")
+        player_info = gecko.readmem(player_info_adr, 212)
 
-        player_dict = {"Number": player_num, "PlayerInfo": gecko.readmem(player_info_adr, 212)}
-
-        player_dict["PID"] = int.from_bytes(player_dict["PlayerInfo"][0xD0:0xD4], "big")
+        player_dict = {
+            "Number": player_num, "PlayerInfo": player_info,
+            "PID": int.from_bytes(player_info[0xD0:0xD4], "big"),
+            "PNID": "", "Name": "", "Mii name": ""
+        }
 
         if player_dict["PID"] != 0:
-            player_dict["PNID"] = ""
             player_dict["Name"] = (
-                player_dict["PlayerInfo"][0x6:0x26]
+                player_info[0x6:0x26]
                 .decode("utf-16-be")
                 .split("\u0000")[0]
                 .replace("\n", "")
@@ -101,7 +103,7 @@ if __name__ == "__main__":
     auto_logging = False
     logger = None
 
-    print("Splatlogger v1.3 by Shadow Doggo\n")
+    print("Splatlogger v1.3a by Shadow Doggo\n")
 
     try:
         gecko = TCPGecko(sys.argv[1])
