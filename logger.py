@@ -30,17 +30,17 @@ class Logger:
 
 
     def new_match(self, auto_logging, session_adr, count):
-        match_hour = int.from_bytes(self.gecko.readmem(self.static_mem_adr + 0x237, 1), "big")
-        versus_mode = int.from_bytes(self.gecko.readmem(self.static_mem_adr + 0x23B, 1), "big")
-        self.versus_rule = int.from_bytes(self.gecko.readmem(self.static_mem_adr + 0x23F, 1), "big")
-        stage = self.gecko.readmem(self.static_mem_adr + 0x28, 32).decode("utf-8").split("\u0000")[0]
+        match_hour = int.from_bytes(self.gecko.readmem(self.static_mem_adr + 0x237, length=0x1), byteorder="big")
+        versus_mode = int.from_bytes(self.gecko.readmem(self.static_mem_adr + 0x23B, length=0x1), byteorder="big")
+        self.versus_rule = int.from_bytes(self.gecko.readmem(self.static_mem_adr + 0x23F, length=0x1), byteorder="big")
+        stage = self.gecko.readmem(self.static_mem_adr + 0x28, length=0x20).decode("utf-8").split("\u0000")[0]
 
         if auto_logging:
             self.align = 2
 
             if session_adr != 0:
-                session_id_idx = int.from_bytes(self.gecko.readmem(session_adr + 0xBD, 1), "big")
-                self.session_id = int.from_bytes(self.gecko.readmem(session_adr + session_id_idx * 4 + 0xCC, 4), "big")
+                session_id_idx = int.from_bytes(self.gecko.readmem(session_adr + 0xBD, length=0x1), byteorder="big")
+                self.session_id = int.from_bytes(self.gecko.readmem(session_adr + session_id_idx * 4 + 0xCC, length=0x4), byteorder="big")
             else:
                 self.session_id = 0
 
@@ -61,8 +61,8 @@ class Logger:
                 f.write(match_info)
         else:
             if session_adr != 0:
-                session_id_idx = int.from_bytes(self.gecko.readmem(session_adr + 0xBD, 1), "big")
-                self.session_id = int.from_bytes(self.gecko.readmem(session_adr + session_id_idx * 4 + 0xCC, 4), "big")
+                session_id_idx = int.from_bytes(self.gecko.readmem(session_adr + 0xBD, length=0x1), byteorder="big")
+                self.session_id = int.from_bytes(self.gecko.readmem(session_adr + session_id_idx * 4 + 0xCC, length=0x4), byteorder="big")
             else:
                 self.session_id = 0
 
@@ -82,24 +82,24 @@ class Logger:
 
 
     def log(self, log_stats, player_dict):
-        region = int.from_bytes(player_dict["PlayerInfo"][0x2C:0x30], "big")
-        team = int.from_bytes(player_dict["PlayerInfo"][0x33:0x34], "big")
-        gender = int.from_bytes(player_dict["PlayerInfo"][0x37:0x38], "big")
-        skin_tone = int.from_bytes(player_dict["PlayerInfo"][0x3B:0x3C], "big")
-        eye_color = int.from_bytes(player_dict["PlayerInfo"][0x3F:0x40], "big")
-        shoes = int.from_bytes(player_dict["PlayerInfo"][0x54:0x58], "big")
-        clothes = int.from_bytes(player_dict["PlayerInfo"][0x70:0x74], "big")
-        headgear = int.from_bytes(player_dict["PlayerInfo"][0x8C:0x90], "big")
-        level = int.from_bytes(player_dict["PlayerInfo"][0xAF:0xB0], "big", signed=True) + 1
-        rank = int.from_bytes(player_dict["PlayerInfo"][0xB3:0xB4], "big", signed=True)
-        weapon = int.from_bytes(player_dict["PlayerInfo"][0x46:0x48], "big")  # Main weapon ID. Also possible to get the weapon set ID but that can be spoofed.
-        sub_weapon = int.from_bytes(player_dict["PlayerInfo"][0x4A:0x4C], "big")
-        special_weapon = int.from_bytes(player_dict["PlayerInfo"][0x4D:0x50], "big")
+        region = int.from_bytes(player_dict["PlayerInfo"][0x2C:0x30], byteorder="big")
+        team = int.from_bytes(player_dict["PlayerInfo"][0x33:0x34], byteorder="big")
+        gender = int.from_bytes(player_dict["PlayerInfo"][0x37:0x38], byteorder="big")
+        skin_tone = int.from_bytes(player_dict["PlayerInfo"][0x3B:0x3C], byteorder="big")
+        eye_color = int.from_bytes(player_dict["PlayerInfo"][0x3F:0x40], byteorder="big")
+        shoes = int.from_bytes(player_dict["PlayerInfo"][0x54:0x58], byteorder="big")
+        clothes = int.from_bytes(player_dict["PlayerInfo"][0x70:0x74], byteorder="big")
+        headgear = int.from_bytes(player_dict["PlayerInfo"][0x8C:0x90], byteorder="big")
+        level = int.from_bytes(player_dict["PlayerInfo"][0xAF:0xB0], byteorder="big", signed=True) + 1
+        rank = int.from_bytes(player_dict["PlayerInfo"][0xB3:0xB4], byteorder="big", signed=True)
+        weapon = int.from_bytes(player_dict["PlayerInfo"][0x46:0x48], byteorder="big")  # Main weapon ID. Also possible to get the weapon set ID but that can be spoofed.
+        sub_weapon = int.from_bytes(player_dict["PlayerInfo"][0x4A:0x4C], byteorder="big")
+        special_weapon = int.from_bytes(player_dict["PlayerInfo"][0x4D:0x50], byteorder="big")
 
         player_log = (
             f"\n{' ' * self.align}[Player {player_dict['Number']}]\n"
             f"{' ' * (self.align + 2)}Name: {player_dict['Name']}"
-            f"{' (' + player_dict['Mii name'] + ')' if player_dict['Name'] != player_dict['Mii name'] else ''}\n"
+            f"{' (Mii name:' + player_dict['Mii name'] + ')' if player_dict['Name'] != player_dict['Mii name'] else ''}\n"
             f"{' ' * (self.align + 2)}PID: {player_dict['PID']:X} ({player_dict['PID']})\n"
             f"{' ' * (self.align + 2)}PNID: {player_dict['PNID']}\n"
             f"{' ' * (self.align + 2)}Region: {region}\n"
@@ -123,13 +123,13 @@ class Logger:
 
         if log_stats:
             disconnect = False
-            stats = self.gecko.readmem(0x107AF944, 292)  # A bunch of data including player stats. I'm not exactly sure what this is, but it works.
+            stats = self.gecko.readmem(0x107AF944, length=0x124)  # A bunch of data including player stats. I'm not exactly sure what this is, but it works.
 
             # Buffer player 1 data until stats are updated.
             if player_dict["Number"] == 1:
-                while self.gecko.readmem(0x107AF944, 292) == stats:
+                while self.gecko.readmem(0x107AF944, length=0x124) == stats:
                     if int.from_bytes(  # Fallback to scene change in case the match is not finished.
-                        self.gecko.readmem(self.scene_mgr_adr + 0x162, 2), "big"
+                        self.gecko.readmem(self.scene_mgr_adr + 0x162, length=0x2), byteorder="big"
                         ) != 7:
                         disconnect = True
                         break
@@ -137,12 +137,12 @@ class Logger:
                     time.sleep(5)
 
             if not disconnect:
-                winning_team = int.from_bytes(self.gecko.readmem(0x107AF917, 1), "big")
-                stats = self.gecko.readmem(0x107AF944, 292)  # Read the updated stats again.
+                winning_team = int.from_bytes(self.gecko.readmem(0x107AF917, length=0x1), byteorder="big")
+                stats = self.gecko.readmem(0x107AF944, length=0x124)  # Read the updated stats again.
                 offset = (player_dict["Number"] - 1) * 0x20
-                points = int.from_bytes(stats[offset + 0x3A:offset + 0x3C], "big")
-                kills = int.from_bytes(stats[offset + 0x3E:offset + 0x40], "big")
-                deaths = int.from_bytes(stats[offset + 0x42:offset + 0x44], "big")
+                points = int.from_bytes(stats[offset + 0x3A:offset + 0x3C], byteorder="big")
+                kills = int.from_bytes(stats[offset + 0x3E:offset + 0x40], byteorder="big")
+                deaths = int.from_bytes(stats[offset + 0x42:offset + 0x44], byteorder="big")
                 points_log = ""
 
                 # Only log points in turf war cause in ranked they're the same for all players.

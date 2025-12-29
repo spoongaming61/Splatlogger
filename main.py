@@ -19,11 +19,11 @@ def main():
 
     if not silent_logging: print()
 
-    main_mgr_base_adr = int.from_bytes(gecko.readmem(MAIN_MGR_BASE_PTR, 4), "big")
+    main_mgr_base_adr = int.from_bytes(gecko.readmem(MAIN_MGR_BASE_PTR, length=0x4), byteorder="big")
 
     if main_mgr_base_adr != 0:
-        player_mgr_adr = int.from_bytes(gecko.readmem(main_mgr_base_adr + 0x268, 4), "big")
-        player_count = int.from_bytes(gecko.readmem(player_mgr_adr + 0x323, 1), "big")
+        player_mgr_adr = int.from_bytes(gecko.readmem(main_mgr_base_adr + 0x268, length=0x4), byteorder="big")
+        player_count = int.from_bytes(gecko.readmem(player_mgr_adr + 0x323, length=0x1), byteorder="big")
     else:
         player_count = 8
         if silent_logging: print()
@@ -34,12 +34,12 @@ def main():
 
     for player_num in range(1, player_count + 1):
         player_idx = (player_num - 1) * 0x4
-        player_info_adr = int.from_bytes(gecko.readmem(player_info_ary_adr + player_idx, 4), "big")
-        player_info = gecko.readmem(player_info_adr, 212)
+        player_info_adr = int.from_bytes(gecko.readmem(player_info_ary_adr + player_idx, length=0x4), byteorder="big")
+        player_info = gecko.readmem(player_info_adr, length=0xD4)
 
         player_dict = {
             "Number": player_num, "PlayerInfo": player_info,
-            "PID": int.from_bytes(player_info[0xD0:0xD4], "big"),
+            "PID": int.from_bytes(player_info[0xD0:0xD4], byteorder="big"),
             "PNID": "", "Name": "", "Mii name": ""
         }
 
@@ -76,7 +76,7 @@ def main():
                     f"PID: {player_dict['PID']:X} ({player_dict['PID']}) {' ' * 16 if player_dict['PID'] == 0 else ''}| "
                     f"PNID: {player_dict['PNID']} {' ' * (16 - len(player_dict['PNID']))}| "
                     f"Name: {player_dict['Name']}"
-                    f"{' (' + player_dict['Mii name'] + ')' if player_dict['Name'] != player_dict['Mii name'] else ''}"
+                    f"{' (Mii name:' + player_dict['Mii name'] + ')' if player_dict['Name'] != player_dict['Mii name'] else ''}"
                 )
 
     if not silent_logging:
@@ -84,8 +84,8 @@ def main():
             print("Failed to get PNID for one or more players.")
 
         if not logging_enabled and session_adr != 0:
-            session_id_idx = int.from_bytes(gecko.readmem(session_adr + 0xBD, 1), "big")
-            session_id = int.from_bytes(gecko.readmem(session_adr + session_id_idx * 4 + 0xCC, 4), "big")
+            session_id_idx = int.from_bytes(gecko.readmem(session_adr + 0xBD, length=0x1), byteorder="big")
+            session_id = int.from_bytes(gecko.readmem(session_adr + session_id_idx * 4 + 0xCC, length=0x4), byteorder="big")
 
             print(f"\nSession ID: {session_id:X} ({session_id})")
         elif logging_enabled:  # Don't fetch the session ID again if it was fetched by the logger.
@@ -101,6 +101,7 @@ if __name__ == "__main__":
     silent_logging = False
     log_stats = False
     auto_logging = False
+    log_latest = False
     logger = None
 
     print("Splatlogger v1.3a by Shadow Doggo\n")
@@ -119,63 +120,67 @@ if __name__ == "__main__":
     SCENE_MGR_PTR = 0x106E9770
     MAIN_MGR_BASE_PTR = 0x106E5814
 
-    static_mem_adr = int.from_bytes(gecko.readmem(STATIC_MEM_PTR, 4), "big")
-    session_adr = int.from_bytes(gecko.readmem(SESSION_PTR, 4), "big")
-    scene_mgr_adr = int.from_bytes(gecko.readmem(SCENE_MGR_PTR, 4), "big")
-    player_info_ary_adr = int.from_bytes(gecko.readmem(static_mem_adr + 0x10, 4), "big")
+    static_mem_adr = int.from_bytes(gecko.readmem(STATIC_MEM_PTR, length=0x4), byteorder="big")
+    session_adr = int.from_bytes(gecko.readmem(SESSION_PTR, length=0x4), byteorder="big")
+    scene_mgr_adr = int.from_bytes(gecko.readmem(SCENE_MGR_PTR, length=0x4), byteorder="big")
+    player_info_ary_adr = int.from_bytes(gecko.readmem(static_mem_adr + 0x10, length=0x4), byteorder="big")
 
     VALID_ARGS = ["log", "silent", "stats", "auto", "auto-latest"]
 
-    for arg in sys.argv[2:]:
-        if arg not in VALID_ARGS:
-            print(f"Invalid argument: {arg}")
+    if len(sys.argv) > 2:
+        for arg in sys.argv[2:]:
+            if arg not in VALID_ARGS:
+                print(f"Invalid argument: {arg}")
 
-    if len(sys.argv) > 2 and "log" in sys.argv[2:]:
-        logging_enabled = True
-        logger = Logger(gecko, static_mem_adr, scene_mgr_adr)
-        logger.create_log()
-
-    if len(sys.argv) > 2 and "silent" in sys.argv[2:]:
-        silent_logging = True
-
-    if len(sys.argv) > 2 and "stats" in sys.argv[2:]:
-        log_stats = True
-
-    if len(sys.argv) > 2 and "auto" in sys.argv[2:] or "auto-latest" in sys.argv[2:]:
-        print("\nAuto logging enabled")
-
-        if not logging_enabled:
+        if "log" in sys.argv[2:]:
             logging_enabled = True
             logger = Logger(gecko, static_mem_adr, scene_mgr_adr)
             logger.create_log()
 
-        auto_logging = True
-        match_in_progress = False
-        count = 0
+        if "silent" in sys.argv[2:]:
+            silent_logging = True
 
-        while True:
-            scene_id = int.from_bytes(gecko.readmem(scene_mgr_adr + 0x162, 2), "big")
+        if "stats" in sys.argv[2:]:
+            log_stats = True
 
-            if scene_id != 7:
-                match_in_progress = False
+        if "auto" in sys.argv[2:] or "auto-latest" in sys.argv[2:]:
+            print("\nAuto logging enabled")
 
-            if (
-                not match_in_progress and scene_id == 7
-            ):  # Trigger logging when scene changes to a vs match.
-                match_in_progress = True
-                session_adr = int.from_bytes(gecko.readmem(SESSION_PTR, 4), "big")
-                count += 1
+            if not logging_enabled:
+                logging_enabled = True
+                logger = Logger(gecko, static_mem_adr, scene_mgr_adr)
+                logger.create_log()
 
-                if "auto-latest" in sys.argv[2:]:
-                    logger.create_log()
+            if "auto-latest" in sys.argv[2:]:
+                log_latest = True
 
-                logger.new_match(auto_logging, session_adr, count)
+            auto_logging = True
+            match_in_progress = False
+            count = 0
 
-                if not silent_logging:
-                    print(f"\nMatch {count}")
+            while True:
+                scene_id = int.from_bytes(gecko.readmem(scene_mgr_adr + 0x162, length=0x2), byteorder="big")
 
-                main()
+                if scene_id != 7:
+                    match_in_progress = False
 
-            time.sleep(10)
+                if (
+                    not match_in_progress and scene_id == 7
+                ):  # Trigger logging when scene changes to a vs match.
+                    match_in_progress = True
+                    session_adr = int.from_bytes(gecko.readmem(SESSION_PTR, length=0x4), byteorder="big")
+                    count += 1
 
-    main()
+                    if log_latest:
+                        logger.create_log()
+
+                    logger.new_match(auto_logging, session_adr, count)
+
+                    if not silent_logging:
+                        print(f"\nMatch {count}")
+
+                    main()
+
+                time.sleep(10)
+
+        main()
