@@ -37,7 +37,10 @@ class Logger:
 
     def log_match(self, session_id: int, match_count: int, player_dict: dict[str, int | str | bytes]) -> None:
         if self._auto_logging: self._align = 2
-        match_log: str = self._new_match(session_id, match_count)
+
+        match_log: str = ""
+        if player_dict["Number"] == 1:
+            match_log += self._new_match(session_id, match_count)
 
         region: int = int.from_bytes(player_dict["PlayerInfo"][0x2C:0x30], byteorder="big")
         team: int = int.from_bytes(player_dict["PlayerInfo"][0x33:0x34], byteorder="big")
