@@ -21,11 +21,9 @@ Notes:
 
 * Only Python 3.11 and newer has been tested.
 
-* This will likely only work with regular TCPGecko as I did not account for different memory offsets.
-
 * Only one program can be connected to TCPGecko at a time.
 
 ## Credits
-[pyGecko](https://github.com/wiiudev/pyGecko) authors - tcpgecko.py and common.py
+[pyGecko](https://github.com/wiiudev/pyGecko) authors - tcpgecko.py
 
 Everyone who contributed to [PNIDGrab](https://github.com/JerrySM64/PNIDGrab) and other similar PID grabbers as this is partly based on those.

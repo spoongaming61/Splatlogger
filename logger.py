@@ -4,163 +4,163 @@ import os
 import time
 from datetime import datetime
 
+from tcpgecko import TCPGecko
 import names
 
 
 class Logger:
-    def __init__(self, gecko, static_mem_adr, scene_mgr_adr):
-        self.date = datetime.now()
-        self.gecko = gecko
-        self.static_mem_adr = static_mem_adr
-        self.scene_mgr_adr = scene_mgr_adr
-        self.align = 0
-        self.session_id = 0
-        self.versus_rule = 0
+    STATS_ADR: int = 0x107AF944  # A bunch of data including player stats. I'm not exactly sure what this is, but it works.
+    WIN_TEAM_ADR: int = 0x107AF917
+    MATCH_HOUR_OFFSET: int = 0x237
+    VERSUS_MODE_OFFSET: int = 0x23B
+    VERSUS_RULE_OFFSET: int = 0x23F
+    STAGE_OFFSET: int = 0x28
+    SCENE_ID_OFFSET: int = 0x162
 
+    def __init__(
+        self, gecko: TCPGecko, auto_logging: bool, log_stats: bool, static_mem_adr: int, scene_mgr_adr: int
+    ) -> None:
+        self._gecko: TCPGecko = gecko
+        self._auto_logging: bool = auto_logging
+        self._log_stats: bool = log_stats
+        self._static_mem_adr: int = static_mem_adr
+        self._scene_mgr_adr: int = scene_mgr_adr
+        self._date: datetime = datetime.now()
+        self._align: int = 0
+        self._versus_rule: int = 0
 
-    def create_log(self):
-        if not os.path.isdir(f"./logs/{self.date.strftime('%Y-%m-%d')}"):
-            os.makedirs(f"./logs/{self.date.strftime('%Y-%m-%d')}")
+    def create_new_log(self) -> None:
+        if not os.path.isdir(f"./logs/{self._date.strftime('%Y-%m-%d')}"):
+            os.makedirs(f"./logs/{self._date.strftime('%Y-%m-%d')}")
 
-        with open(
-            f"./logs/{self.date.strftime('%Y-%m-%d')}/{self.date.strftime('%Y-%m-%d %H-%M-%S')} log.txt",
-            "w", encoding="utf-8"
-        ) as f:
-            f.write(f"Splatlogger log from {self.date.strftime('%Y-%m-%d %H:%M:%S')}\n")
+        self._write_log(log=f"Splatlogger log from {self._date.strftime('%Y-%m-%d %H:%M:%S')}\n", mode="w")
 
+    def log_match(self, session_id: int, match_count: int, player_dict: dict[str, int | str | bytes]) -> None:
+        if self._auto_logging: self._align = 2
+        match_log: str = self._new_match(session_id, match_count)
 
-    def new_match(self, auto_logging, session_adr, count):
-        match_hour = int.from_bytes(self.gecko.readmem(self.static_mem_adr + 0x237, length=0x1), byteorder="big")
-        versus_mode = int.from_bytes(self.gecko.readmem(self.static_mem_adr + 0x23B, length=0x1), byteorder="big")
-        self.versus_rule = int.from_bytes(self.gecko.readmem(self.static_mem_adr + 0x23F, length=0x1), byteorder="big")
-        stage = self.gecko.readmem(self.static_mem_adr + 0x28, length=0x20).decode("utf-8").split("\u0000")[0]
+        region: int = int.from_bytes(player_dict["PlayerInfo"][0x2C:0x30], byteorder="big")
+        team: int = int.from_bytes(player_dict["PlayerInfo"][0x33:0x34], byteorder="big")
+        gender: int = int.from_bytes(player_dict["PlayerInfo"][0x37:0x38], byteorder="big")
+        skin_tone: int = int.from_bytes(player_dict["PlayerInfo"][0x3B:0x3C], byteorder="big")
+        eye_color: int = int.from_bytes(player_dict["PlayerInfo"][0x3F:0x40], byteorder="big")
+        shoes: int = int.from_bytes(player_dict["PlayerInfo"][0x54:0x58], byteorder="big")
+        clothes: int = int.from_bytes(player_dict["PlayerInfo"][0x70:0x74], byteorder="big")
+        headgear: int = int.from_bytes(player_dict["PlayerInfo"][0x8C:0x90], byteorder="big")
+        level: int = int.from_bytes(player_dict["PlayerInfo"][0xAF:0xB0], byteorder="big", signed=True) + 1
+        rank: int = int.from_bytes(player_dict["PlayerInfo"][0xB3:0xB4], byteorder="big", signed=True)
+        weapon: int = int.from_bytes(player_dict["PlayerInfo"][0x46:0x48], byteorder="big")
+        sub_weapon: int = int.from_bytes(player_dict["PlayerInfo"][0x4A:0x4C], byteorder="big")
+        special_weapon: int = int.from_bytes(player_dict["PlayerInfo"][0x4D:0x50], byteorder="big")
 
-        if auto_logging:
-            self.align = 2
-
-            if session_adr != 0:
-                session_id_idx = int.from_bytes(self.gecko.readmem(session_adr + 0xBD, length=0x1), byteorder="big")
-                self.session_id = int.from_bytes(self.gecko.readmem(session_adr + session_id_idx * 4 + 0xCC, length=0x4), byteorder="big")
-            else:
-                self.session_id = 0
-
-            match_info = (
-                    f"\n[Match {count}]\n"
-                    f"{' ' * self.align}Time: {datetime.now().strftime('%H:%M:%S')}\n"
-                    f"{' ' * self.align}Session ID: {self.session_id:X} ({self.session_id})\n"
-                    f"{' ' * self.align}Versus mode: {names.VERSUS_MODE_NAME.get(versus_mode, 'Unknown')}\n"
-                    f"{' ' * self.align}Versus rule: {names.VERSUS_RULE_NAME.get(self.versus_rule, 'Unknown')}\n"
-                    f"{' ' * self.align}Stage: {names.STAGE_NAME.get(stage, 'Unknown')}\n"
-                    f"{' ' * self.align}Day/Night: {names.MATCH_HOUR_NAME.get(match_hour, 'Unknown')}\n"
-                )
-
-            with open(
-                f"./logs/{self.date.strftime('%Y-%m-%d')}/{self.date.strftime('%Y-%m-%d %H-%M-%S')} log.txt",
-                "a", encoding="utf-8"
-            ) as f:
-                f.write(match_info)
-        else:
-            if session_adr != 0:
-                session_id_idx = int.from_bytes(self.gecko.readmem(session_adr + 0xBD, length=0x1), byteorder="big")
-                self.session_id = int.from_bytes(self.gecko.readmem(session_adr + session_id_idx * 4 + 0xCC, length=0x4), byteorder="big")
-            else:
-                self.session_id = 0
-
-            match_info = (
-                    f"{' ' * self.align}\nSession ID: {self.session_id:X} ({self.session_id})\n"
-                    f"{' ' * self.align}Versus mode: {names.VERSUS_MODE_NAME.get(versus_mode, 'Unknown')}\n"
-                    f"{' ' * self.align}Versus rule: {names.VERSUS_RULE_NAME.get(self.versus_rule, 'Unknown')}\n"
-                    f"{' ' * self.align}Stage: {names.STAGE_NAME.get(stage, 'Unknown')}\n"
-                    f"{' ' * self.align}Day/Night: {names.MATCH_HOUR_NAME.get(match_hour, 'Unknown')}\n"
-                )
-
-            with open(
-                f"./logs/{self.date.strftime('%Y-%m-%d')}/{self.date.strftime('%Y-%m-%d %H-%M-%S')} log.txt",
-                "a", encoding="utf-8"
-            ) as f:
-                f.write(match_info)
-
-
-    def log(self, log_stats, player_dict):
-        region = int.from_bytes(player_dict["PlayerInfo"][0x2C:0x30], byteorder="big")
-        team = int.from_bytes(player_dict["PlayerInfo"][0x33:0x34], byteorder="big")
-        gender = int.from_bytes(player_dict["PlayerInfo"][0x37:0x38], byteorder="big")
-        skin_tone = int.from_bytes(player_dict["PlayerInfo"][0x3B:0x3C], byteorder="big")
-        eye_color = int.from_bytes(player_dict["PlayerInfo"][0x3F:0x40], byteorder="big")
-        shoes = int.from_bytes(player_dict["PlayerInfo"][0x54:0x58], byteorder="big")
-        clothes = int.from_bytes(player_dict["PlayerInfo"][0x70:0x74], byteorder="big")
-        headgear = int.from_bytes(player_dict["PlayerInfo"][0x8C:0x90], byteorder="big")
-        level = int.from_bytes(player_dict["PlayerInfo"][0xAF:0xB0], byteorder="big", signed=True) + 1
-        rank = int.from_bytes(player_dict["PlayerInfo"][0xB3:0xB4], byteorder="big", signed=True)
-        weapon = int.from_bytes(player_dict["PlayerInfo"][0x46:0x48], byteorder="big")  # Main weapon ID. Also possible to get the weapon set ID but that can be spoofed.
-        sub_weapon = int.from_bytes(player_dict["PlayerInfo"][0x4A:0x4C], byteorder="big")
-        special_weapon = int.from_bytes(player_dict["PlayerInfo"][0x4D:0x50], byteorder="big")
-
-        player_log = (
-            f"\n{' ' * self.align}[Player {player_dict['Number']}]\n"
-            f"{' ' * (self.align + 2)}Name: {player_dict['Name']}"
-            f"{' (Mii name:' + player_dict['Mii name'] + ')' if player_dict['Name'] != player_dict['Mii name'] else ''}\n"
-            f"{' ' * (self.align + 2)}PID: {player_dict['PID']:X} ({player_dict['PID']})\n"
-            f"{' ' * (self.align + 2)}PNID: {player_dict['PNID']}\n"
-            f"{' ' * (self.align + 2)}Region: {region}\n"
-            f"{' ' * (self.align + 2)}Team: {names.TEAM_NAME.get(team, 'Unknown')} ({team})\n"
-            f"{' ' * (self.align + 2)}Level: {level}\n"
-            f"{' ' * (self.align + 2)}Rank: {names.RANK_NAME.get(rank, 'Unknown')} ({rank})\n"
-            f"{' ' * (self.align + 2)}Appearance: Gender: {names.GENDER_NAME.get(gender, 'Unknown')} ({gender}),"
+        match_log += (
+            f"\n{' ' * self._align}[Player {player_dict['Number']}]\n"
+            f"{' ' * (self._align + 2)}Name: {player_dict['Name']}"
+            f"{' (Mii name: ' + player_dict['Mii name'] + ')' if player_dict['Name'] != player_dict['Mii name'] else ''}\n"
+            f"{' ' * (self._align + 2)}PID: {player_dict['PID']:X} ({player_dict['PID']})\n"
+            f"{' ' * (self._align + 2)}PNID: {player_dict['PNID']}\n"
+            f"{' ' * (self._align + 2)}Region: {region}\n"
+            f"{' ' * (self._align + 2)}Team: {names.TEAM_NAME.get(team, 'Unknown')} ({team})\n"
+            f"{' ' * (self._align + 2)}Level: {level}\n"
+            f"{' ' * (self._align + 2)}Rank: {names.RANK_NAME.get(rank, 'Unknown')} ({rank})\n"
+            f"{' ' * (self._align + 2)}Appearance: Gender: {names.GENDER_NAME.get(gender, 'Unknown')} ({gender}),"
             f" Skin tone: {skin_tone}, Eye color: {names.EYE_COLOR_NAME.get(eye_color, 'Unknown')} ({eye_color})\n"
-            f"{' ' * (self.align + 2)}Gear: Headgear: {names.HEADGEAR_NAME.get(headgear, 'Unknown')} ({headgear}),"
-            f" Clothes: {names.CLOTHES_NAME.get(clothes, 'Unknown')} ({clothes}), Shoes: {names.SHOES_NAME.get(shoes, 'Unknown')} ({shoes})\n"
-            f"{' ' * (self.align + 2)}Weapons: Main: {names.WEAPON_NAME.get(weapon, 'Unknown')} ({weapon}),"
+            f"{' ' * (self._align + 2)}Gear: Headgear: {names.HEADGEAR_NAME.get(headgear, 'Unknown')} ({headgear}),"
+            f" Clothes: {names.CLOTHES_NAME.get(clothes, 'Unknown')} ({clothes}),"
+            f" Shoes: {names.SHOES_NAME.get(shoes, 'Unknown')} ({shoes})\n"
+            f"{' ' * (self._align + 2)}Weapons: Main: {names.WEAPON_NAME.get(weapon, 'Unknown')} ({weapon}),"
             f" Sub: {names.SUB_WEAPON_NAME.get(sub_weapon, 'Unknown')} ({sub_weapon}),"
             f" Special: {names.SPECIAL_WEAPON_NAME.get(special_weapon, 'Unknown')} ({special_weapon})\n"
         )  # Long ass string.
 
+        if self._log_stats:
+            match_log += self._get_stats(team, player_dict)
+
+        self._write_log(log=match_log, mode="a")
+
+    def _write_log(self, log: str, mode: str) -> None:
         with open(
-            f"./logs/{self.date.strftime('%Y-%m-%d')}/{self.date.strftime('%Y-%m-%d %H-%M-%S')} log.txt",
-            "a", encoding="utf-8"
+            f"./logs/{self._date.strftime('%Y-%m-%d')}/{self._date.strftime('%Y-%m-%d %H-%M-%S')} log.txt",
+            mode, encoding="utf-8"
         ) as f:
-            f.write(player_log)
+            f.write(log)
 
-        if log_stats:
-            disconnect = False
-            stats = self.gecko.readmem(0x107AF944, length=0x124)  # A bunch of data including player stats. I'm not exactly sure what this is, but it works.
+    def _new_match(self, session_id: int, match_count: int) -> str:
+        match_hour: int = int.from_bytes(
+            self._gecko.readmem(self._static_mem_adr + self.MATCH_HOUR_OFFSET, length=0x1), byteorder="big"
+        )
+        versus_mode: int = int.from_bytes(
+            self._gecko.readmem(self._static_mem_adr + self.VERSUS_MODE_OFFSET, length=0x1), byteorder="big"
+        )
+        self._versus_rule = int.from_bytes(
+            self._gecko.readmem(self._static_mem_adr + self.VERSUS_RULE_OFFSET, length=0x1), byteorder="big"
+        )
+        stage: str = (
+            self._gecko.readmem(self._static_mem_adr + self.STAGE_OFFSET, length=0x20)
+            .decode("utf-8")
+            .split("\u0000")[0]
+        )
+        match_info: str
 
-            # Buffer player 1 data until stats are updated.
-            if player_dict["Number"] == 1:
-                while self.gecko.readmem(0x107AF944, length=0x124) == stats:
-                    if int.from_bytes(  # Fallback to scene change in case the match is not finished.
-                        self.gecko.readmem(self.scene_mgr_adr + 0x162, length=0x2), byteorder="big"
-                        ) != 7:
-                        disconnect = True
-                        break
+        if self._auto_logging:
+            match_info = (
+                f"\n[Match {match_count}]\n"
+                f"{' ' * self._align}Time: {datetime.now().strftime('%H:%M:%S')}\n"
+                f"{' ' * self._align}Session ID: {session_id:X} ({session_id})\n"
+                f"{' ' * self._align}Versus mode: {names.VERSUS_MODE_NAME.get(versus_mode, 'Unknown')}\n"
+                f"{' ' * self._align}Versus rule: {names.VERSUS_RULE_NAME.get(self._versus_rule, 'Unknown')}\n"
+                f"{' ' * self._align}Stage: {names.STAGE_NAME.get(stage, 'Unknown')}\n"
+                f"{' ' * self._align}Day/Night: {names.MATCH_HOUR_NAME.get(match_hour, 'Unknown')}\n"
+            )
+        else:
+            match_info = (
+                f"{' ' * self._align}\nSession ID: {session_id:X} ({session_id})\n"
+                f"{' ' * self._align}Versus mode: {names.VERSUS_MODE_NAME.get(versus_mode, 'Unknown')}\n"
+                f"{' ' * self._align}Versus rule: {names.VERSUS_RULE_NAME.get(self._versus_rule, 'Unknown')}\n"
+                f"{' ' * self._align}Stage: {names.STAGE_NAME.get(stage, 'Unknown')}\n"
+                f"{' ' * self._align}Day/Night: {names.MATCH_HOUR_NAME.get(match_hour, 'Unknown')}\n"
+            )
 
-                    time.sleep(5)
+        return match_info
 
-            if not disconnect:
-                winning_team = int.from_bytes(self.gecko.readmem(0x107AF917, length=0x1), byteorder="big")
-                stats = self.gecko.readmem(0x107AF944, length=0x124)  # Read the updated stats again.
-                offset = (player_dict["Number"] - 1) * 0x20
-                points = int.from_bytes(stats[offset + 0x3A:offset + 0x3C], byteorder="big")
-                kills = int.from_bytes(stats[offset + 0x3E:offset + 0x40], byteorder="big")
-                deaths = int.from_bytes(stats[offset + 0x42:offset + 0x44], byteorder="big")
-                points_log = ""
+    def _get_stats(self, team: int, player_dict: dict[str, int | str | bytes]) -> str:
+        disconnect: bool = False
+        stats: bytes = self._gecko.readmem(self.STATS_ADR, length=0x124)
 
-                # Only log points in turf war cause in ranked they're the same for all players.
-                if self.versus_rule == 0:
-                    if team == winning_team:
-                        points_log = f"{' ' * (self.align + 2)}Points: {points + 1000}p ({points}p w/o win bonus)\n"
-                    else:
-                        points_log = f"{' ' * (self.align + 2)}Points: {points}p\n"
+        # Buffer player 1 data until stats are updated.
+        if player_dict["Number"] == 1:
+            while self._gecko.readmem(self.STATS_ADR, length=0x124) == stats:
+                if int.from_bytes(  # Fallback to scene change in case the match is not finished.
+                        self._gecko.readmem(self._scene_mgr_adr + self.SCENE_ID_OFFSET, length=0x2), byteorder="big"
+                ) != 7:
+                    disconnect = True
+                    break
 
-                player_stats = (
-                    f"{points_log}"
-                    f"{' ' * (self.align + 2)}Kills: {kills}\n"
-                    f"{' ' * (self.align + 2)}Deaths: {deaths}\n"
-                    f"{' ' * (self.align + 2)}Result: {'Win' if team == winning_team else 'Lose'}\n"
-                )
+                time.sleep(5)
 
-                with open(
-                    f"./logs/{self.date.strftime('%Y-%m-%d')}/{self.date.strftime('%Y-%m-%d %H-%M-%S')} log.txt",
-                    "a", encoding="utf-8"
-                ) as f:
-                    f.write(player_stats)
+        if not disconnect:
+            winning_team: int = int.from_bytes(self._gecko.readmem(self.WIN_TEAM_ADR, length=0x1), byteorder="big")
+            stats = self._gecko.readmem(self.STATS_ADR, length=0x124)  # Read the updated stats again.
+            offset: int = (player_dict["Number"] - 1) * 0x20
+            points: int = int.from_bytes(stats[offset + 0x3A:offset + 0x3C], byteorder="big")
+            kills: int = int.from_bytes(stats[offset + 0x3E:offset + 0x40], byteorder="big")
+            deaths: int = int.from_bytes(stats[offset + 0x42:offset + 0x44], byteorder="big")
+            points_log: str = ""
+
+            # Only log points in turf war cause in ranked they're the same for all players.
+            if self._versus_rule == 0:
+                if team == winning_team:
+                    points_log = f"{' ' * (self._align + 2)}Points: {points + 1000}p ({points}p w/o win bonus)\n"
+                else:
+                    points_log = f"{' ' * (self._align + 2)}Points: {points}p\n"
+
+            player_stats = (
+                f"{points_log}"
+                f"{' ' * (self._align + 2)}Kills: {kills}\n"
+                f"{' ' * (self._align + 2)}Deaths: {deaths}\n"
+                f"{' ' * (self._align + 2)}Result: {'Win' if team == winning_team else 'Lose'}\n"
+            )
+
+            return player_stats
+
+        return ""
