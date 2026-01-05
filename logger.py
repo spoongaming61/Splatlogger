@@ -3,9 +3,19 @@
 import os
 import time
 from datetime import datetime
+from typing import TypedDict
 
 from tcpgecko import TCPGecko
 import names
+
+
+class PlayerDict(TypedDict):
+    number: int
+    player_info: bytes
+    pid: int
+    pnid: str
+    name: str
+    mii_name: str
 
 
 class Logger:
@@ -45,10 +55,10 @@ class Logger:
 
         self._write_log(log=f"Splatlogger log from {self._date.strftime('%Y-%m-%d %H:%M:%S')}\n", mode="w")
 
-    def log_match(self, session_id: int, match_count: int, player_dict: dict[str, int | str | bytes]) -> None:
+    def log_match(self, session_id: int, match_count: int, player_dict: PlayerDict) -> None:
         """Write player and match data to the log file."""
 
-        player_info: bytes = player_dict["PlayerInfo"]
+        player_info: bytes = player_dict["player_info"]
         region: int = int.from_bytes(player_info[0x2C:0x30], byteorder="big")
         team: int = int.from_bytes(player_info[0x33:0x34], byteorder="big")
         gender: int = int.from_bytes(player_info[0x37:0x38], byteorder="big")
@@ -64,15 +74,15 @@ class Logger:
         special_weapon: int = int.from_bytes(player_info[0x4D:0x50], byteorder="big")
         match_log: str = ""
 
-        if player_dict["Number"] == 1:
+        if player_dict["number"] == 1:
             match_log += self._new_match(session_id, match_count)
 
         match_log += (
-            f"\n{' ' * self._align}[Player {player_dict['Number']}]\n"
-            f"{' ' * (self._align + 2)}Name: {player_dict['Name']}"
-            f"{' (Mii name: ' + player_dict['Mii name'] + ')' if player_dict['Name'] != player_dict['Mii name'] else ''}\n"
-            f"{' ' * (self._align + 2)}PID: {player_dict['PID']:X} ({player_dict['PID']})\n"
-            f"{' ' * (self._align + 2)}PNID: {player_dict['PNID']}\n"
+            f"\n{' ' * self._align}[Player {player_dict['number']}]\n"
+            f"{' ' * (self._align + 2)}Name: {player_dict['name']}"
+            f"{' (Mii name: ' + player_dict['mii_name'] + ')' if player_dict['name'] != player_dict['mii_name'] else ''}\n"
+            f"{' ' * (self._align + 2)}PID: {player_dict['pid']:X} ({player_dict['pid']})\n"
+            f"{' ' * (self._align + 2)}PNID: {player_dict['pnid']}\n"
             f"{' ' * (self._align + 2)}Region: {region}\n"
             f"{' ' * (self._align + 2)}Team: {names.TEAM_NAME.get(team, 'Unknown')} ({team})\n"
             f"{' ' * (self._align + 2)}Level: {level}\n"
@@ -138,11 +148,11 @@ class Logger:
 
         return match_info
 
-    def _get_stats(self, team: int, player_dict: dict[str, int | str | bytes]) -> str:
+    def _get_stats(self, team: int, player_dict: PlayerDict) -> str:
         stats: bytes = self._gecko.readmem(self.STATS_ADR - self._stats_offset, length=0x124)
 
         # Buffer player 1 data until stats are updated.
-        if player_dict["Number"] == 1:
+        if player_dict["number"] == 1:
             while self._gecko.readmem(self.STATS_ADR - self._stats_offset, length=0x124) == stats:
                 if int.from_bytes(
                         self._gecko.readmem(self._scene_mgr_adr + self.SCENE_ID_OFFSET, length=0x2), byteorder="big"
@@ -157,7 +167,7 @@ class Logger:
                 self._gecko.readmem(self.WIN_TEAM_ADR - self._stats_offset, length=0x1), byteorder="big"
             )
             stats = self._gecko.readmem(self.STATS_ADR - self._stats_offset, length=0x124)  # Read the updated stats again.
-            offset: int = (player_dict["Number"] - 1) * 0x20
+            offset: int = (player_dict["number"] - 1) * 0x20
             points: int = int.from_bytes(stats[offset + 0x3A:offset + 0x3C], byteorder="big")
             kills: int = int.from_bytes(stats[offset + 0x3E:offset + 0x40], byteorder="big")
             deaths: int = int.from_bytes(stats[offset + 0x42:offset + 0x44], byteorder="big")

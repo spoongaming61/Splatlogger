@@ -9,7 +9,7 @@ from urllib.request import Request, urlopen
 
 from tcpgecko import TCPGecko
 from tcpgecko_aroma import TCPGeckoAroma
-from logger import Logger
+from logger import Logger, PlayerDict
 
 _VERSION: str = "1.4"
 _VALID_ARGS: list[str] = ["log", "silent", "stats", "auto", "auto-latest", "aroma"]
@@ -101,9 +101,9 @@ def main(args: list[str]) -> None:
                         .read()
                         .decode("utf-8")
                     )
-                    player_pnid = response[0].find("user_id").text
+                    player_pnid = response[0].find("user_id").text  # type: ignore
                     player_mii_name = (
-                        response[0].find("name")
+                        response[0].find("name")  # type: ignore
                         .text
                         .replace("\n", "")
                         .replace("\r", "")
@@ -112,10 +112,10 @@ def main(args: list[str]) -> None:
                     epic_fail = True
 
                 if logging_enabled:
-                    player_dict: dict[str, int | str | bytes] = {
-                        "Number": player_num, "PlayerInfo": player_info,
-                        "PID": player_pid, "PNID": player_pnid,
-                        "Name": player_name, "Mii name": player_mii_name
+                    player_dict: PlayerDict = {
+                        "number": player_num, "player_info": player_info,
+                        "pid": player_pid, "pnid": player_pnid,
+                        "name": player_name, "mii_name": player_mii_name
                     }
 
                     logger.log_match(session_id, match_count, player_dict)

@@ -10,7 +10,7 @@ class TCPGeckoAroma(TCPGecko):
         super().__init__(ip, port, timeout)
 
     def readmem(self, address: int, length: int) -> bytes:
-        """Read memory at starting at address and ending at address + length.
+        """Read memory starting at address and ending at address + length.
         Returns a bytes object.
         """
 
