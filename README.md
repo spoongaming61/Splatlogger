@@ -17,11 +17,15 @@ Additional arguments:
 
 * ```auto-latest``` - Same as above but will save only the latest match you played.
 
+* ```aroma``` - Enable aroma mode. Compatible with [TCPGeckoAroma](https://github.com/Teotia444/TCPGeckoAroma).
+
 Notes:
 
 * Only Python 3.11 and newer has been tested.
 
 * Only one program can be connected to TCPGecko at a time.
+
+* Aroma support hasn't been thoroughly tested yet and should be considered experimental.
 
 ## Credits
 [pyGecko](https://github.com/wiiudev/pyGecko) authors - tcpgecko.py

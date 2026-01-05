@@ -21,20 +21,25 @@
 # SOFTWARE.
 
 # Splatlogger (c) 2025 Shadow Doggo.
-# This is a modified, stripped down version of tcpgecko.py.
+# This is a modified, stripped-down version of tcpgecko.py.
 
 import socket
 import struct
 
 
 class TCPGecko:
-    def __init__(self, ip: str, timeout: int) -> None:
-        self._socket: socket.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM, socket.IPPROTO_TCP)
+    """Python library for use with TCPGecko."""
 
+    def __init__(self, ip: str, port: int, timeout: int) -> None:
+        self._socket: socket.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM, socket.IPPROTO_TCP)
         self._socket.settimeout(timeout)
-        self._socket.connect((ip, 7331))  # IP, 1337 reversed, Cafiine uses 7332+
+        self._socket.connect((ip, port))
 
     def readmem(self, address: int, length: int) -> bytes:
+        """Read memory at starting at address and ending at address + length.
+        Returns a bytes object.
+        """
+
         if length == 0:
             raise TCPGeckoException("Reading memory requires a length (# of bytes).")
 
@@ -47,14 +52,13 @@ class TCPGecko:
         ret: bytes = b""
         request: bytes
         status: bytes
-
-        if length > 0x400:
-            for i in range(int(length / 0x400)):  # Number of blocks, ignores extra
+        if length > 0x400:  # Read in chunks if length is over 400 bytes.
+            for i in range(int(length / 0x400)):  # Number of blocks, ignores extra.
                 self._socket.send(b"\x04")  # cmd_readmem
                 request = struct.pack(">II", address, address + 0x400)
                 self._socket.send(request)
-                status = self._socket.recv(1)
 
+                status = self._socket.recv(1)
                 if status == b"\xbd":
                     ret += self._socket.recv(0x400)
                 elif status == b"\xb0":
@@ -65,12 +69,12 @@ class TCPGecko:
                 address += 0x400
                 length -= 0x400
 
-            if length != 0:  # Now read the last little bit
+            if length != 0:  # Now read the last little bit.
                 self._socket.send(b"\x04")
                 request = struct.pack(">II", address, address + length)
                 self._socket.send(request)
-                status = self._socket.recv(1)
 
+                status = self._socket.recv(1)
                 if status == b"\xbd":
                     ret += self._socket.recv(length)
                 elif status == b"\xb0":
@@ -83,8 +87,8 @@ class TCPGecko:
             self._socket.send(b"\x04")
             request = struct.pack(">II", address, address + length)
             self._socket.send(request)
-            status = self._socket.recv(1)
 
+            status = self._socket.recv(1)
             if status == b"\xbd":
                 ret += self._socket.recv(length)
             elif status == b"\xb0":
@@ -100,9 +104,9 @@ class TCPGecko:
 
         if 0x01000000 <= address and end_address <= 0x01800000:
             return True
-        elif 0x0E000000 <= address and end_address <= 0x10000000:  # Depends on game
+        elif 0x0E000000 <= address and end_address <= 0x10000000:  # Depends on the game.
             return True
-        elif 0x10000000 <= address and end_address <= 0x50000000:  # Doesn't quite go to 5
+        elif 0x10000000 <= address and end_address <= 0x50000000:  # Doesn't quite go to 5.
             return True
         elif 0xE0000000 <= address and end_address <= 0xE4000000:
             return True
@@ -125,7 +129,7 @@ class TCPGecko:
             if access.lower() == "read":  return True
             if access.lower() == "write": return False
             return False
-        elif 0x0E000000 <= address and end_address <= 0x10000000:  # Depends on game, may be EG 0x0E3
+        elif 0x0E000000 <= address and end_address <= 0x10000000:  # Depends on the game, may be EG 0x0E3.
             if access.lower() == "read":  return True
             if access.lower() == "write": return False
             return False

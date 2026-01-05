@@ -8,10 +8,11 @@ from datetime import datetime
 from urllib.request import Request, urlopen
 
 from tcpgecko import TCPGecko
+from tcpgecko_aroma import TCPGeckoAroma
 from logger import Logger
 
 _VERSION: str = "1.4"
-_VALID_ARGS: list[str] = ["log", "silent", "stats", "auto", "auto-latest"]
+_VALID_ARGS: list[str] = ["log", "silent", "stats", "auto", "auto-latest", "aroma"]
 STATIC_MEM_PTR: int = 0x106E0330
 SESSION_PTR: int = 0x106EB980
 SCENE_MGR_PTR: int = 0x106E9770
@@ -25,6 +26,20 @@ SCENE_ID_OFFSET: int = 0x162
 
 
 def main(args: list[str]) -> None:
+    """Arguments:
+    log - Write full match log to file.
+
+    silent - Enable silent logging (don't print logs to console).
+
+    stats - Enable logging of player stats (points, kills, deaths, win/loss). Requires the match to complete to finish logging, also makes logging slower.
+
+    auto - Enable auto logging. When enabled will automatically log every match you play.
+
+    auto-latest - Same as above but will save only the latest match you played.
+
+    aroma - Enable aroma mode. Compatible with TCPGeckoAroma.
+    """
+
     def splatlog(match_count: int) -> None:
         epic_fail: bool = False
         session_id: int = 0
@@ -59,15 +74,10 @@ def main(args: list[str]) -> None:
                 gecko.readmem(player_info_ary_adr + player_idx, length=0x4), byteorder="big"
             )
             player_info: bytes = gecko.readmem(player_info_adr, length=0xD4)
+            player_pid: int = int.from_bytes(player_info[0xD0:0xD4], byteorder="big")
 
-            player_dict: dict[str, int | str | bytes] = {
-                "Number": player_num, "PlayerInfo": player_info,
-                "PID": int.from_bytes(player_info[0xD0:0xD4], byteorder="big"),
-                "PNID": "", "Name": "", "Mii name": ""
-            }
-
-            if player_dict["PID"] != 0:
-                player_dict["Name"] = (
+            if player_pid != 0:
+                player_name: str = (
                     player_info[0x6:0x26]
                     .decode("utf-16-be")
                     .split("\u0000")[0]
@@ -76,41 +86,51 @@ def main(args: list[str]) -> None:
                 )
 
                 # Get user data from the account server.
+                player_pnid: str = ""
+                player_mii_name: str = ""
                 req: Request = Request(
-                    f"http://account.pretendo.cc/v1/api/miis?pids={player_dict['PID']}",
+                    f"http://account.pretendo.cc/v1/api/miis?pids={player_pid}",
                     headers={
                         "X-Nintendo-Client-ID": "a2efa818a34fa16b8afbc8a74eba3eda",
                         "X-Nintendo-Client-Secret": "c91cdb5658bd4954ade78533a339cf9a",
                     },
                 )
-
                 try:
-                    response: ElementTree.Element[str] = ElementTree.fromstring(urlopen(req).read().decode("utf-8"))
-                    player_dict["PNID"] = response[0].find("user_id").text
-                    player_dict["Mii name"] = (  # Always get the real mii name in case a player used name changer.
+                    response: ElementTree.Element[str] = ElementTree.fromstring(
+                        urlopen(req)
+                        .read()
+                        .decode("utf-8")
+                    )
+                    player_pnid = response[0].find("user_id").text
+                    player_mii_name = (
                         response[0].find("name")
                         .text
                         .replace("\n", "")
                         .replace("\r", "")
-                    )
+                    )  # Always get the real mii name in case a player used name changer.
                 except urllib.error.URLError:
                     epic_fail = True
 
                 if logging_enabled:
+                    player_dict: dict[str, int | str | bytes] = {
+                        "Number": player_num, "PlayerInfo": player_info,
+                        "PID": player_pid, "PNID": player_pnid,
+                        "Name": player_name, "Mii name": player_mii_name
+                    }
+
                     logger.log_match(session_id, match_count, player_dict)
 
                 if not silent_logging:
                     print(
                         f"Player {player_num} | "
-                        f"PID: {player_dict['PID']:X} ({player_dict['PID']}) {' ' * 16 if player_dict['PID'] == 0 else ''}| "
-                        f"PNID: {player_dict['PNID']} {' ' * (16 - len(player_dict['PNID']))}| "
-                        f"Name: {player_dict['Name']}"
-                        f"{' (Mii name: ' + player_dict['Mii name'] + ')' if player_dict['Name'] != player_dict['Mii name'] else ''}"
+                        f"PID: {player_pid:X} ({player_pid}) {' ' * 16 if player_pid == 0 else ''}| "
+                        f"PNID: {player_pnid} {' ' * (16 - len(player_pnid))}| "
+                        f"Name: {player_name}"
+                        f"{' (Mii name: ' + player_mii_name + ')' if player_name != player_mii_name else ''}"
                     )
 
         if not silent_logging:
             print()
-
             if epic_fail:
                 print("Failed to get account data for one or more players.\n")
 
@@ -127,12 +147,44 @@ def main(args: list[str]) -> None:
     log_stats: bool = False
     auto_logging: bool = False
     log_latest: bool = False
+    aroma: bool = False
 
     print(f"Splatlogger v{_VERSION} by Shadow Doggo\n")
 
+    if len(args) > 1:
+        arg: str
+        for arg in args[1:]:
+            if arg not in _VALID_ARGS:
+                print(f"Invalid argument: {arg}")
+
+        if "silent" in args[1:]:
+            silent_logging = True
+
+        if "stats" in args[1:]:
+            log_stats = True
+
+        if "log" in args[1:]:
+            logging_enabled = True
+
+        if "auto" in args[1:]:
+            logging_enabled = True
+            auto_logging = True
+
+        if "auto-latest" in args[1:]:
+            logging_enabled = True
+            auto_logging = True
+            log_latest = True
+
+        if "aroma" in args[1:]:
+            aroma = True
+
     try:
         print(f"Connecting to: {args[0]}")
-        gecko: TCPGecko = TCPGecko(ip=args[0], timeout=10)
+        gecko: TCPGecko
+        if aroma:
+            gecko = TCPGeckoAroma(ip=args[0], port=7332, timeout=10)
+        else:
+            gecko = TCPGecko(ip=args[0], port=7331, timeout=10)
     except IndexError:
         print("No IP address was provided.")
         exit()
@@ -154,75 +206,55 @@ def main(args: list[str]) -> None:
         gecko.readmem(static_mem_adr + PLAYER_INFO_ARY_OFFSET, length=0x4), byteorder="big"
     )
 
-    if len(args) > 1:
-        arg: str
-        for arg in args[1:]:
-            if arg not in _VALID_ARGS:
-                print(f"Invalid argument: {arg}")
+    logger: Logger
+    if logging_enabled and not auto_logging:
+        logger = Logger(gecko, auto_logging, log_stats, aroma, static_mem_adr, scene_mgr_adr)
+        try:  # This should catch any permission issues.
+            logger.create_new_log()
+        except OSError as e:
+            print(f"Failed to create log file: {e}")
+            exit()
 
-        if "silent" in args[1:]:
-            silent_logging = True
+    if auto_logging:
+        print("Auto logging enabled.")
 
-        if "stats" in args[1:]:
-            log_stats = True
+        logger = Logger(gecko, auto_logging, log_stats, aroma, static_mem_adr, scene_mgr_adr)
+        try:
+            logger.create_new_log()
+        except OSError as e:
+            print(f"Failed to create log file: {e}")
+            exit()
 
-        if "log" in args[1:] and "auto" not in args[1:] or "auto-latest" not in args[1:]:
-            logging_enabled = True
-            logger: Logger = Logger(gecko, auto_logging, log_stats, static_mem_adr, scene_mgr_adr)
-
-            try:  # This should catch any permission issues.
-                logger.create_new_log()
-            except OSError as e:
-                print(f"Failed to create log file: {e}")
-                exit()
-
-        if "auto" in args[1:] or "auto-latest" in args[1:]:
-            print("Auto logging enabled.")
-
-            logging_enabled = True
-            auto_logging = True
-            logger: Logger = Logger(gecko, auto_logging, log_stats, static_mem_adr, scene_mgr_adr)
-
+        match_in_progress: bool = False
+        count: int = 0
+        while True:
             try:
-                logger.create_new_log()
-            except OSError as e:
-                print(f"Failed to create log file: {e}")
-                exit()
+                scene_id: int = int.from_bytes(
+                    gecko.readmem(scene_mgr_adr + SCENE_ID_OFFSET, length=0x2), byteorder="big"
+                )
+                if scene_id != 7:
+                    match_in_progress = False
 
-            if "auto-latest" in args[1:]:
-                log_latest = True
+                if (
+                    not match_in_progress and scene_id == 7
+                ):  # Trigger logging when scene changes to a vs match.
+                    match_in_progress = True
+                    session_adr = int.from_bytes(gecko.readmem(SESSION_PTR, length=0x4), byteorder="big")
+                    count += 1
 
-            match_in_progress: bool = False
-            count: int = 0
+                    if log_latest:
+                        logger.create_new_log()
 
-            while True:
-                try:
-                    scene_id: int = int.from_bytes(
-                        gecko.readmem(scene_mgr_adr + SCENE_ID_OFFSET, length=0x2), byteorder="big"
-                    )
+                    if not silent_logging:
+                        print(f"\nMatch {count}\n")
 
-                    if scene_id != 7:
-                        match_in_progress = False
+                    time.sleep(1)  # Wait a bit after the scene changes for the match to load.
+                    splatlog(match_count=count)
 
-                    if (
-                        not match_in_progress and scene_id == 7
-                    ):  # Trigger logging when scene changes to a vs match.
-                        match_in_progress = True
-                        session_adr = int.from_bytes(gecko.readmem(SESSION_PTR, length=0x4), byteorder="big")
-                        count += 1
-
-                        if log_latest:
-                            logger.create_new_log()
-
-                        if not silent_logging:
-                            print(f"\nMatch {count}\n")
-
-                        splatlog(match_count=count)
-
-                    time.sleep(10)
-                except KeyboardInterrupt:
-                    print("\nExiting.")
-                    break
+                time.sleep(10)
+            except KeyboardInterrupt:
+                print("\nExiting.")
+                break
 
     if not auto_logging:
         splatlog(match_count=1)
