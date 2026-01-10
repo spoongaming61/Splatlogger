@@ -17,7 +17,7 @@ Additional arguments:
 
 * ```auto-latest``` - Same as above but will save only the latest match you played.
 
-* ```aroma``` - Enable aroma mode. Compatible with [TCPGeckoAroma](https://github.com/Teotia444/TCPGeckoAroma).
+* ```aroma``` - Enable aroma mode. Compatible with [TCPGeckoAroma](https://github.com/spoongaming61/TCPGeckoAroma).
 
 Notes:
 
