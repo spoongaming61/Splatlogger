@@ -81,8 +81,6 @@ class TCPGecko:
                     ret += b"\x00" * length
                 else:
                     raise TCPGeckoException("Unable to read memory.")
-
-            print("Finished!")
         else:
             self._socket.send(b"\x04")
             request = struct.pack(">II", address, address + length)
