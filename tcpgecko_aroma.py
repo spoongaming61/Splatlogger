@@ -9,8 +9,8 @@ class TCPGeckoAroma(TCPGecko):
     def __init__(self, ip: str, port: int, timeout: int) -> None:
         super().__init__(ip, port, timeout)
 
-    def readmem(self, address: int, length: int) -> bytes:
-        """Read memory starting at address and ending at address + length.
+    def peek_raw(self, address: int, length: int) -> bytes:
+        """Read raw memory starting at address and ending at address + length.
         Returns a bytes object.
         """
 
@@ -19,7 +19,6 @@ class TCPGeckoAroma(TCPGecko):
         request: bytes
         response: bytes
 
-        # Read in chunks if the length is over 4 bytes.
         # peekmultiple could work as well, but the implementation would
         # have to be a lot more complicated to allow for arbitrary lengths.
         if length > 4:
@@ -42,16 +41,59 @@ class TCPGeckoAroma(TCPGecko):
                     value = int(response.decode("utf-8"))
                     ret += value.to_bytes(length=4, byteorder="big")[:length]
         else:
-            # Always read as u32.
-            # The plugin supports reading different data types with bit shifting
-            # but I'm doing it this way for compatibility.
             request = bytes(f"peek -t u32 -a 0x{address:X}", "utf-8")
             self._socket.send(request)
 
             response = self._socket.recv(32)
-            # The plugin sends the data as an integer value encoded into a string.
-            # I'm converting it to int and then to a bytes object.
             value = int(response.decode("utf-8"))
-            ret = value.to_bytes(4, byteorder="big")[:length]  # Slice the data to the desired length.
+            ret = value.to_bytes(4, byteorder="big")[:length]
 
         return ret
+
+    def peek8(self, address: int, signed: bool=False) -> int:
+        """Get an 8-bit integer value stored at the specified address."""
+
+        request = bytes(f"peek -t u8 -a 0x{address + 0x3:X}", "utf-8")
+        self._socket.send(request)
+
+        response = self._socket.recv(8)
+        val = int(response.decode("utf-8"))
+        if signed and val >= 2 ** 31:  # Rough unsigned to signed conversion.
+            return val - 2 ** 32
+
+        return val
+
+    def peek16(self, address: int, signed: bool=False) -> int:
+        """Get a 16-bit integer value stored at the specified address."""
+
+        request = bytes(f"peek -t u16 -a 0x{address + 0x2:X}", "utf-8")
+        self._socket.send(request)
+
+        response = self._socket.recv(16)
+        val = int(response.decode("utf-8"))
+        if signed and val >= 2 ** 31:
+            return val - 2 ** 32
+
+        return val
+
+    def peek32(self, address: int, signed: bool=False) -> int:
+        """Get a 32-bit integer value stored at the specified address."""
+
+        request = bytes(f"peek -t u32 -a 0x{address:X}", "utf-8")
+        self._socket.send(request)
+
+        response = self._socket.recv(32)
+        val = int(response.decode("utf-8"))
+        if signed and val >= 2 ** 31:
+            return val - 2 ** 32
+
+        return val
+
+    def peek_float(self, address: int) -> float:
+        """Get a floating point value stored at the specified address."""
+
+        request = bytes(f"peek -t f32 -a 0x{address:X}", "utf-8")
+        self._socket.send(request)
+
+        response = self._socket.recv(32)
+        return float(response.decode("utf-8"))

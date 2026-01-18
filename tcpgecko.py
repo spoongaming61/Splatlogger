@@ -35,8 +35,8 @@ class TCPGecko:
         self._socket.settimeout(timeout)
         self._socket.connect((ip, port))
 
-    def readmem(self, address: int, length: int) -> bytes:
-        """Read memory starting at address and ending at address + length.
+    def peek_raw(self, address: int, length: int) -> bytes:
+        """Read raw memory starting at address and ending at address + length.
         Returns a bytes object.
         """
 
@@ -96,6 +96,31 @@ class TCPGecko:
 
         return ret
 
+    def peek8(self, address: int, signed: bool=False) -> int:
+        """Get an 8-bit integer value stored at the specified address."""
+
+        return int.from_bytes(self.peek_raw(address + 0x3, length=0x1), byteorder="big", signed=signed)
+
+    def peek16(self, address: int, signed: bool=False) -> int:
+        """Get a 16-bit integer value stored at the specified address."""
+
+        return int.from_bytes(self.peek_raw(address + 0x2, length=0x2), byteorder="big", signed=signed)
+
+    def peek32(self, address: int, signed: bool=False) -> int:
+        """Get a 32-bit integer value stored at the specified address."""
+
+        return int.from_bytes(self.peek_raw(address, length=0x4), byteorder="big", signed=signed)
+
+    def peek_float(self, address: int) -> float:
+        """Get a floating point value stored at the specified address."""
+
+        return struct.unpack(">f", self.peek_raw(address, length=0x4))[0]
+
+    def read_string(self, address: int, *, strlen: int=1, encoding: str="utf-8") -> str:
+        """Read a string of text starting at the specified address."""
+
+        return self.peek_raw(address, strlen).decode(encoding)
+
     @staticmethod
     def _valid_range(address: int, length: int) -> bool:
         end_address: int = address + length
@@ -124,44 +149,44 @@ class TCPGecko:
         end_address: int = address + length
 
         if 0x01000000 <= address and end_address <= 0x01800000:
-            if access.lower() == "read":  return True
-            if access.lower() == "write": return False
+            if access == "read":  return True
+            if access == "write": return False
             return False
         elif 0x0E000000 <= address and end_address <= 0x10000000:  # Depends on the game, may be EG 0x0E3.
-            if access.lower() == "read":  return True
-            if access.lower() == "write": return False
+            if access == "read":  return True
+            if access == "write": return False
             return False
         elif 0x10000000 <= address and end_address <= 0x50000000:
-            if access.lower() == "read":  return True
-            if access.lower() == "write": return True
+            if access == "read":  return True
+            if access == "write": return True
             return False
         elif 0xE0000000 <= address and end_address <= 0xE4000000:
-            if access.lower() == "read":  return True
-            if access.lower() == "write": return False
+            if access == "read":  return True
+            if access == "write": return False
             return False
         elif 0xE8000000 <= address and end_address <= 0xEA000000:
-            if access.lower() == "read":  return True
-            if access.lower() == "write": return False
+            if access == "read":  return True
+            if access == "write": return False
             return False
         elif 0xF4000000 <= address and end_address <= 0xF6000000:
-            if access.lower() == "read":  return True
-            if access.lower() == "write": return False
+            if access == "read":  return True
+            if access == "write": return False
             return False
         elif 0xF6000000 <= address and end_address <= 0xF6800000:
-            if access.lower() == "read":  return True
-            if access.lower() == "write": return False
+            if access == "read":  return True
+            if access == "write": return False
             return False
         elif 0xF8000000 <= address and end_address <= 0xFB000000:
-            if access.lower() == "read":  return True
-            if access.lower() == "write": return False
+            if access == "read":  return True
+            if access == "write": return False
             return False
         elif 0xFB000000 <= address and end_address <= 0xFB800000:
-            if access.lower() == "read":  return True
-            if access.lower() == "write": return False
+            if access == "read":  return True
+            if access == "write": return False
             return False
         elif 0xFFFE0000 <= address and end_address <= 0xFFFFFFFF:
-            if access.lower() == "read":  return True
-            if access.lower() == "write": return True
+            if access == "read":  return True
+            if access == "write": return True
             return False
         else:
             return False

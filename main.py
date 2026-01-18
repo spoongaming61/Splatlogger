@@ -9,20 +9,11 @@ from urllib.request import Request, urlopen
 
 from tcpgecko import TCPGecko
 from tcpgecko_aroma import TCPGeckoAroma
-from logger import Logger, PlayerDict
+from match_logger import MatchLogger
+from data import Pointers, Offsets, PlayerInfo
 
-_VERSION: str = "1.4"
+_VERSION: str = "1.4a"
 _VALID_ARGS: list[str] = ["log", "silent", "stats", "auto", "auto-latest", "aroma"]
-STATIC_MEM_PTR: int = 0x106E0330
-SESSION_PTR: int = 0x106EB980
-SCENE_MGR_PTR: int = 0x106E9770
-MAIN_MGR_BASE_PTR: int = 0x106E5814
-PLAYER_INFO_ARY_OFFSET: int = 0x10
-PLAYER_MGR_OFFSET: int = 0x268
-PLAYER_COUNT_OFFSET: int = 0x323
-SESSION_IDX_OFFSET: int = 0xBD
-SESSION_ID_OFFSET: int = 0xCC
-SCENE_ID_OFFSET: int = 0x162
 
 
 def main(args: list[str]) -> None:
@@ -44,52 +35,43 @@ def main(args: list[str]) -> None:
         epic_fail: bool = False
         session_id: int = 0
         player_count: int = 8  # Default to 8 to log all players from the last match.
-        main_mgr_base_adr: int = int.from_bytes(gecko.readmem(MAIN_MGR_BASE_PTR, length=0x4), byteorder="big")
+        main_mgr_base_adr: int = gecko.peek32(Pointers.MAIN_MGR_BASE)
+        player_info_list: list[PlayerInfo] = []
 
         if session_adr != 0:
-            session_id_idx: int = int.from_bytes(gecko.readmem(
-                session_adr + SESSION_IDX_OFFSET, length=0x1), byteorder="big"
+            session_id_idx: int = int.from_bytes(gecko.peek_raw(
+                session_adr + Offsets.SESSION_IDX, length=0x1), byteorder="big"
             )
-            session_id = int.from_bytes(gecko.readmem(
-                session_adr + session_id_idx * 4 + SESSION_ID_OFFSET, length=0x4), byteorder="big"
-            )
+            session_id = gecko.peek32(session_adr + session_id_idx * 4 + Offsets.SESSION_ID)
 
         if main_mgr_base_adr != 0:
-            player_mgr_adr: int = int.from_bytes(
-                gecko.readmem(main_mgr_base_adr + PLAYER_MGR_OFFSET, length=0x4), byteorder="big"
-            )
-            player_count = int.from_bytes(
-                gecko.readmem(player_mgr_adr + PLAYER_COUNT_OFFSET, length=0x1), byteorder="big"
-            )
+            player_mgr_adr: int = gecko.peek32(main_mgr_base_adr + Offsets.PLAYER_MGR)
+            player_count = gecko.peek8(player_mgr_adr + Offsets.PLAYER_COUNT)
         else:
             print(
-                "You are currently not in a match. Logging previous match data"
-                " (Player 1 data will be your own, Session ID will be the current one).\n"
+                "You are currently not in a match. Logging previous match data "
+                "(Player 1 data will be your own, Session ID will be the current one).\n"
             )
 
-        player_num: int
-        for player_num in range(1, player_count + 1):
-            player_idx: int = (player_num - 1) * 0x4
-            player_info_adr: int = int.from_bytes(
-                gecko.readmem(player_info_ary_adr + player_idx, length=0x4), byteorder="big"
-            )
-            player_info: bytes = gecko.readmem(player_info_adr, length=0xD4)
-            player_pid: int = int.from_bytes(player_info[0xD0:0xD4], byteorder="big")
+        player_idx: int
+        for player_idx in range(player_count):
+            player_info_adr: int = gecko.peek32(player_info_ary_adr + player_idx * 0x4)
+            player_info_raw: bytes = gecko.peek_raw(player_info_adr, length=0xD4)
 
+            player_pid: int = int.from_bytes(player_info_raw[0xD0:0xD4], byteorder="big")
             if player_pid != 0:
                 player_name: str = (
-                    player_info[0x6:0x26]
+                    player_info_raw[0x6:0x26]
                     .decode("utf-16-be")
                     .split("\u0000")[0]
                     .replace("\n", "")
                     .replace("\r", "")
                 )
 
-                # Get user data from the account server.
                 player_pnid: str = ""
                 player_mii_name: str = ""
                 req: Request = Request(
-                    f"http://account.pretendo.cc/v1/api/miis?pids={player_pid}",
+                    f"https://account.pretendo.cc/v1/api/miis?pids={player_pid}",
                     headers={
                         "X-Nintendo-Client-ID": "a2efa818a34fa16b8afbc8a74eba3eda",
                         "X-Nintendo-Client-Secret": "c91cdb5658bd4954ade78533a339cf9a",
@@ -112,22 +94,39 @@ def main(args: list[str]) -> None:
                     epic_fail = True
 
                 if logging_enabled:
-                    player_dict: PlayerDict = {
-                        "number": player_num, "player_info": player_info,
-                        "pid": player_pid, "pnid": player_pnid,
-                        "name": player_name, "mii_name": player_mii_name
-                    }
-
-                    logger.log_match(session_id, match_count, player_dict)
+                    player_info: PlayerInfo = PlayerInfo(
+                        index=player_idx,
+                        pid=player_pid,
+                        pnid=player_pnid,
+                        name=player_name,
+                        mii_name=player_mii_name,
+                        region=int.from_bytes(player_info_raw[0x2C:0x30], byteorder="big"),
+                        team=int.from_bytes(player_info_raw[0x33:0x34], byteorder="big"),
+                        gender=int.from_bytes(player_info_raw[0x37:0x38], byteorder="big"),
+                        skin_tone=int.from_bytes(player_info_raw[0x3B:0x3C], byteorder="big"),
+                        eye_color=int.from_bytes(player_info_raw[0x3F:0x40], byteorder="big"),
+                        weapon=int.from_bytes(player_info_raw[0x46:0x48], byteorder="big"),
+                        sub_weapon=int.from_bytes(player_info_raw[0x4A:0x4C], byteorder="big"),
+                        special_weapon=int.from_bytes(player_info_raw[0x4D:0x50], byteorder="big"),
+                        shoes=int.from_bytes(player_info_raw[0x54:0x58], byteorder="big"),
+                        clothes=int.from_bytes(player_info_raw[0x70:0x74], byteorder="big"),
+                        headgear=int.from_bytes(player_info_raw[0x8C:0x90], byteorder="big"),
+                        level=int.from_bytes(player_info_raw[0xAF:0xB0], byteorder="big", signed=True) + 1,
+                        rank=int.from_bytes(player_info_raw[0xB3:0xB4], byteorder="big", signed=True)
+                    )
+                    player_info_list.append(player_info)
 
                 if not silent_logging:
                     print(
-                        f"Player {player_num} | "
+                        f"Player {player_idx + 1} | "
                         f"PID: {player_pid:X} ({player_pid}) {' ' * 16 if player_pid == 0 else ''}| "
                         f"PNID: {player_pnid} {' ' * (16 - len(player_pnid))}| "
                         f"Name: {player_name}"
                         f"{' (Mii name: ' + player_mii_name + ')' if player_name != player_mii_name else ''}"
                     )
+
+        if logging_enabled:
+            match_logger.log_match(session_id, match_count, player_info_list)
 
         if not silent_logging:
             print()
@@ -157,14 +156,14 @@ def main(args: list[str]) -> None:
             if arg not in _VALID_ARGS:
                 print(f"Invalid argument: {arg}")
 
+        if "log" in args[1:]:
+            logging_enabled = True
+
         if "silent" in args[1:]:
             silent_logging = True
 
         if "stats" in args[1:]:
             log_stats = True
-
-        if "log" in args[1:]:
-            logging_enabled = True
 
         if "auto" in args[1:]:
             logging_enabled = True
@@ -178,9 +177,9 @@ def main(args: list[str]) -> None:
         if "aroma" in args[1:]:
             aroma = True
 
+    gecko: TCPGecko
     try:
         print(f"Connecting to: {args[0]}")
-        gecko: TCPGecko
         if aroma:
             gecko = TCPGeckoAroma(ip=args[0], port=7332, timeout=10)
         else:
@@ -193,24 +192,21 @@ def main(args: list[str]) -> None:
         exit()
 
     try:  # Check if any data can be received. This will fail if something else is connected.
-        gecko.readmem(STATIC_MEM_PTR, length=0x1)
+        gecko.peek_raw(Pointers.STATIC_MEM, length=0x1)
         print("Connected.\n")
     except TimeoutError:
         print("Connection timed out.")
         exit()
 
-    static_mem_adr: int = int.from_bytes(gecko.readmem(STATIC_MEM_PTR, length=0x4), byteorder="big")
-    session_adr: int = int.from_bytes(gecko.readmem(SESSION_PTR, length=0x4), byteorder="big")
-    scene_mgr_adr: int = int.from_bytes(gecko.readmem(SCENE_MGR_PTR, length=0x4), byteorder="big")
-    player_info_ary_adr: int = int.from_bytes(
-        gecko.readmem(static_mem_adr + PLAYER_INFO_ARY_OFFSET, length=0x4), byteorder="big"
-    )
+    static_mem_adr: int = gecko.peek32(Pointers.STATIC_MEM)
+    session_adr: int = gecko.peek32(Pointers.SESSION)
+    player_info_ary_adr: int = gecko.peek32(static_mem_adr + Offsets.PLAYER_INFO_ARY)
 
-    logger: Logger
+    match_logger: MatchLogger
     if logging_enabled and not auto_logging:
-        logger = Logger(gecko, auto_logging, log_stats, aroma, static_mem_adr, scene_mgr_adr)
+        match_logger = MatchLogger(gecko, auto_logging, log_stats, aroma, static_mem_adr)
         try:  # This should catch any permission issues.
-            logger.create_new_log()
+            match_logger.create_new_log()
         except OSError as e:
             print(f"Failed to create log file: {e}")
             exit()
@@ -218,9 +214,9 @@ def main(args: list[str]) -> None:
     if auto_logging:
         print("Auto logging enabled.")
 
-        logger = Logger(gecko, auto_logging, log_stats, aroma, static_mem_adr, scene_mgr_adr)
+        match_logger = MatchLogger(gecko, auto_logging, log_stats, aroma, static_mem_adr)
         try:
-            logger.create_new_log()
+            match_logger.create_new_log()
         except OSError as e:
             print(f"Failed to create log file: {e}")
             exit()
@@ -229,21 +225,19 @@ def main(args: list[str]) -> None:
         count: int = 0
         while True:
             try:
-                scene_id: int = int.from_bytes(
-                    gecko.readmem(scene_mgr_adr + SCENE_ID_OFFSET, length=0x2), byteorder="big"
-                )
-                if scene_id != 7:
+                main_mgr_vs_game_adr: int = gecko.peek32(Pointers.MAIN_MGR_VS_GAME)
+                if main_mgr_vs_game_adr == 0:
                     match_in_progress = False
 
                 if (
-                    not match_in_progress and scene_id == 7
-                ):  # Trigger logging when scene changes to a vs match.
+                    not match_in_progress and main_mgr_vs_game_adr != 0
+                ):  # Trigger logging when MainMgrVSGame is loaded.
                     match_in_progress = True
-                    session_adr = int.from_bytes(gecko.readmem(SESSION_PTR, length=0x4), byteorder="big")
+                    session_adr = gecko.peek32(Pointers.SESSION)
                     count += 1
 
                     if log_latest:
-                        logger.create_new_log()
+                        match_logger.create_new_log()
 
                     if not silent_logging:
                         print(f"\nMatch {count}\n")
