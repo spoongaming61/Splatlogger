@@ -30,12 +30,12 @@ import struct
 class TCPGecko:
     """Python library for use with TCPGecko."""
 
-    def __init__(self, ip: str, port: int, timeout: int) -> None:
+    def __init__(self, ip: str, *, port: int=7331, timeout: int=10) -> None:
         self._socket: socket.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM, socket.IPPROTO_TCP)
         self._socket.settimeout(timeout)
         self._socket.connect((ip, port))
 
-    def peek_raw(self, address: int, length: int) -> bytes:
+    def peek_raw(self, address: int, *, length: int) -> bytes:
         """Read raw memory starting at address and ending at address + length.
         Returns a bytes object.
         """
@@ -96,17 +96,17 @@ class TCPGecko:
 
         return ret
 
-    def peek8(self, address: int, signed: bool=False) -> int:
+    def peek8(self, address: int, *, signed: bool=False) -> int:
         """Get an 8-bit integer value stored at the specified address."""
 
         return int.from_bytes(self.peek_raw(address + 0x3, length=0x1), byteorder="big", signed=signed)
 
-    def peek16(self, address: int, signed: bool=False) -> int:
+    def peek16(self, address: int, *, signed: bool=False) -> int:
         """Get a 16-bit integer value stored at the specified address."""
 
         return int.from_bytes(self.peek_raw(address + 0x2, length=0x2), byteorder="big", signed=signed)
 
-    def peek32(self, address: int, signed: bool=False) -> int:
+    def peek32(self, address: int, *, signed: bool=False) -> int:
         """Get a 32-bit integer value stored at the specified address."""
 
         return int.from_bytes(self.peek_raw(address, length=0x4), byteorder="big", signed=signed)
@@ -119,7 +119,7 @@ class TCPGecko:
     def read_string(self, address: int, *, strlen: int=1, encoding: str="utf-8") -> str:
         """Read a string of text starting at the specified address."""
 
-        return self.peek_raw(address, strlen).decode(encoding)
+        return self.peek_raw(address, length=strlen).decode(encoding)
 
     @staticmethod
     def _valid_range(address: int, length: int) -> bool:

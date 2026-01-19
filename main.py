@@ -181,9 +181,9 @@ def main(args: list[str]) -> None:
     try:
         print(f"Connecting to: {args[0]}")
         if aroma:
-            gecko = TCPGeckoAroma(ip=args[0], port=7332, timeout=10)
+            gecko = TCPGeckoAroma(args[0])
         else:
-            gecko = TCPGecko(ip=args[0], port=7331, timeout=10)
+            gecko = TCPGecko(args[0])
     except IndexError:
         print("No IP address was provided.")
         exit()

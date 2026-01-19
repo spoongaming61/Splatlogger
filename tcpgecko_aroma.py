@@ -1,18 +1,27 @@
 # Splatlogger (c) 2025 Shadow Doggo.
 
-from tcpgecko import *
+from tcpgecko import TCPGecko, TCPGeckoException
 
 
 class TCPGeckoAroma(TCPGecko):
     """Extends pyGecko to add TCPGeckoAroma support."""
 
-    def __init__(self, ip: str, port: int, timeout: int) -> None:
-        super().__init__(ip, port, timeout)
+    def __init__(self, ip: str, *, port: int=7332, timeout: int=10) -> None:
+        super().__init__(ip, port=port, timeout=timeout)
 
-    def peek_raw(self, address: int, length: int) -> bytes:
+    def peek_raw(self, address: int, *, length: int) -> bytes:
         """Read raw memory starting at address and ending at address + length.
         Returns a bytes object.
         """
+
+        if length == 0:
+            raise TCPGeckoException("Reading memory requires a length (# of bytes).")
+
+        if not self._valid_range(address, length):
+            raise TCPGeckoException("Address range is not valid.")
+
+        if not self._valid_access(address, length, access="read"):
+            raise TCPGeckoException("Cannot read from address.")
 
         value: int
         ret: bytes = b""
@@ -50,8 +59,14 @@ class TCPGeckoAroma(TCPGecko):
 
         return ret
 
-    def peek8(self, address: int, signed: bool=False) -> int:
+    def peek8(self, address: int, *, signed: bool=False) -> int:
         """Get an 8-bit integer value stored at the specified address."""
+
+        if not self._valid_range(address, length=0x1):
+            raise TCPGeckoException("Address range is not valid.")
+
+        if not self._valid_access(address, length=0x1, access="read"):
+            raise TCPGeckoException("Cannot read from address.")
 
         request = bytes(f"peek -t u8 -a 0x{address + 0x3:X}", "utf-8")
         self._socket.send(request)
@@ -63,8 +78,14 @@ class TCPGeckoAroma(TCPGecko):
 
         return val
 
-    def peek16(self, address: int, signed: bool=False) -> int:
+    def peek16(self, address: int, *, signed: bool=False) -> int:
         """Get a 16-bit integer value stored at the specified address."""
+
+        if not self._valid_range(address, length=0x1):
+            raise TCPGeckoException("Address range is not valid.")
+
+        if not self._valid_access(address, length=0x2, access="read"):
+            raise TCPGeckoException("Cannot read from address.")
 
         request = bytes(f"peek -t u16 -a 0x{address + 0x2:X}", "utf-8")
         self._socket.send(request)
@@ -76,8 +97,14 @@ class TCPGeckoAroma(TCPGecko):
 
         return val
 
-    def peek32(self, address: int, signed: bool=False) -> int:
+    def peek32(self, address: int, *, signed: bool=False) -> int:
         """Get a 32-bit integer value stored at the specified address."""
+
+        if not self._valid_range(address, length=0x1):
+            raise TCPGeckoException("Address range is not valid.")
+
+        if not self._valid_access(address, length=0x4, access="read"):
+            raise TCPGeckoException("Cannot read from address.")
 
         request = bytes(f"peek -t u32 -a 0x{address:X}", "utf-8")
         self._socket.send(request)
@@ -91,6 +118,12 @@ class TCPGeckoAroma(TCPGecko):
 
     def peek_float(self, address: int) -> float:
         """Get a floating point value stored at the specified address."""
+
+        if not self._valid_range(address, length=0x1):
+            raise TCPGeckoException("Address range is not valid.")
+
+        if not self._valid_access(address, length=0x4, access="read"):
+            raise TCPGeckoException("Cannot read from address.")
 
         request = bytes(f"peek -t f32 -a 0x{address:X}", "utf-8")
         self._socket.send(request)
