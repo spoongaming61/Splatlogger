@@ -1,15 +1,17 @@
 # Splatlogger
 CLI Python program for logging the info of players you've played with in Splatoon matches using TCPGecko.
 
-To use run ```python /path/to/Splatlogger/main.py x.x.x.x args``` where "x.x.x.x" is your Wii U's LAN IP address and "args" are any additional arguments.
+## Usage
 
-Running with just the IP address will print player PIDs, PNIDs and names to the console without logging.
+You'll need a modded Wii U running either [TCPGecko](https://github.com/BullyWiiPlaza/tcpgecko) (Geckiine or SDGeckiine will work as well) or the [TCPGecko Aroma plugin](https://github.com/spoongaming61/TCPGeckoAroma), as well as Python 3.11 or newer installed on your system.
 
-Additional arguments:
+Run `python /path/to/Splatlogger/main.py IP [options]` where `IP` is your Wii U's LAN IP address.
+
+Options:
 
 * ```log``` - Write full match log to file.
 
-* ```silent``` - Enable silent logging (don't print logs to console).
+* ```silent``` - Don't print logs to the console.
 
 * ```stats``` - Enable logging of player stats (points, kills, deaths, win/loss). Requires the match to complete to finish logging, also makes logging slower.
 
@@ -17,15 +19,11 @@ Additional arguments:
 
 * ```auto-latest``` - Same as above but will save only the latest match you played.
 
-* ```aroma``` - Enable aroma mode. Compatible with [TCPGeckoAroma](https://github.com/spoongaming61/TCPGeckoAroma).
+* ```aroma``` - Enable Aroma mode.
 
-Notes:
+Running with just the IP address will print player PIDs, PNIDs and names to the console without logging.
 
-* Only Python 3.11 and newer has been tested.
-
-* Only one program can be connected to TCPGecko at a time.
-
-* Aroma support hasn't been thoroughly tested yet and should be considered experimental.
+Only one program can be connected to TCPGecko at a time. If you have something else connected, disconnect it before running Splatlogger.
 
 ## Credits
 [pyGecko](https://github.com/wiiudev/pyGecko) authors - tcpgecko.py
