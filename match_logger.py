@@ -4,27 +4,22 @@ import os
 import time
 from datetime import datetime
 
-from tcpgecko import TCPGecko
 from data import Pointers, Addresses, Offsets, PlayerInfo, Names
+from tcpgecko import TCPGecko
 
 
 class MatchLogger:
     """Provides the match logging functionality of Splatlogger."""
 
-    def __init__(
-            self, gecko: TCPGecko, auto_logging: bool, log_stats: bool, aroma: bool, static_mem_adr: int
-    ) -> None:
+    def __init__(self, gecko: TCPGecko, auto_logging: bool, log_stats: bool, aroma: bool,
+                 static_mem_adr: int) -> None:
         self._gecko: TCPGecko = gecko
         self._auto_logging: bool = auto_logging
         self._log_stats: bool = log_stats
         self._static_mem_adr: int = static_mem_adr
         self._date: datetime = datetime.now()
-        self._align: int = 0
-        if auto_logging:
-            self._align = 2
-        self._stats_offset: int = 0x0
-        if aroma:
-            self._stats_offset = 0x30
+        self._align: int = 2 if auto_logging else 0
+        self._stats_offset: int = 0x30 if aroma else 0
         self._versus_rule: int = 0
         self._disconnect: bool = False
 
@@ -85,10 +80,8 @@ class MatchLogger:
         self._write_log(log=match_log, mode="a")
 
     def _write_log(self, log: str, mode: str) -> None:
-        with open(
-            f"./logs/{self._date.strftime('%Y-%m-%d')}/{self._date.strftime('%Y-%m-%d %H-%M-%S')} log.txt",
-            mode, encoding="utf-8"
-        ) as f:
+        with open(f"./logs/{self._date.strftime('%Y-%m-%d')}/{self._date.strftime('%Y-%m-%d %H-%M-%S')} log.txt",
+                  mode, encoding="utf-8") as f:
             f.write(log)
 
     def _new_match(self, session_id: int, match_count: int) -> str:
@@ -98,25 +91,21 @@ class MatchLogger:
         self._versus_rule = self._gecko.peek8(self._static_mem_adr + Offsets.VERSUS_RULE)
         stage: str = self._gecko.read_string(self._static_mem_adr + Offsets.STAGE, strlen=32).split("\u0000")[0]
 
-        match_info: str
-        if self._auto_logging:
-            match_info = (
-                f"\n[Match {match_count}]\n"
-                f"{' ' * self._align}Time: {datetime.now().strftime('%H:%M:%S')}\n"
-                f"{' ' * self._align}Session ID: {session_id:X} ({session_id})\n"
-                f"{' ' * self._align}Versus mode: {Names.VERSUS_MODE_NAME.get(versus_mode, 'Unknown')}\n"
-                f"{' ' * self._align}Versus rule: {Names.VERSUS_RULE_NAME.get(self._versus_rule, 'Unknown')}\n"
-                f"{' ' * self._align}Stage: {Names.STAGE_NAME.get(stage, 'Unknown')}\n"
-                f"{' ' * self._align}Day/Night: {Names.MATCH_HOUR_NAME.get(match_hour, 'Unknown')}\n"
-            )
-        else:
-            match_info = (
-                f"{' ' * self._align}\nSession ID: {session_id:X} ({session_id})\n"
-                f"{' ' * self._align}Versus mode: {Names.VERSUS_MODE_NAME.get(versus_mode, 'Unknown')}\n"
-                f"{' ' * self._align}Versus rule: {Names.VERSUS_RULE_NAME.get(self._versus_rule, 'Unknown')}\n"
-                f"{' ' * self._align}Stage: {Names.STAGE_NAME.get(stage, 'Unknown')}\n"
-                f"{' ' * self._align}Day/Night: {Names.MATCH_HOUR_NAME.get(match_hour, 'Unknown')}\n"
-            )
+        match_info: str = (
+            f"\n[Match {match_count}]\n"
+            f"{' ' * self._align}Time: {datetime.now().strftime('%H:%M:%S')}\n"
+            f"{' ' * self._align}Session ID: {session_id:X} ({session_id})\n"
+            f"{' ' * self._align}Versus mode: {Names.VERSUS_MODE_NAME.get(versus_mode, 'Unknown')}\n"
+            f"{' ' * self._align}Versus rule: {Names.VERSUS_RULE_NAME.get(self._versus_rule, 'Unknown')}\n"
+            f"{' ' * self._align}Stage: {Names.STAGE_NAME.get(stage, 'Unknown')}\n"
+            f"{' ' * self._align}Day/Night: {Names.MATCH_HOUR_NAME.get(match_hour, 'Unknown')}\n"
+        ) if self._auto_logging else (
+            f"{' ' * self._align}\nSession ID: {session_id:X} ({session_id})\n"
+            f"{' ' * self._align}Versus mode: {Names.VERSUS_MODE_NAME.get(versus_mode, 'Unknown')}\n"
+            f"{' ' * self._align}Versus rule: {Names.VERSUS_RULE_NAME.get(self._versus_rule, 'Unknown')}\n"
+            f"{' ' * self._align}Stage: {Names.STAGE_NAME.get(stage, 'Unknown')}\n"
+            f"{' ' * self._align}Day/Night: {Names.MATCH_HOUR_NAME.get(match_hour, 'Unknown')}\n"
+        )
 
         return match_info
 
@@ -143,10 +132,8 @@ class MatchLogger:
             # Only log points in turf war cause in ranked they're the same for all players.
             points_log: str = ""
             if self._versus_rule == 0:
-                if team == winning_team:
-                    points_log = f"{' ' * (self._align + 2)}Points: {points + 1000}p ({points}p w/o win bonus)\n"
-                else:
-                    points_log = f"{' ' * (self._align + 2)}Points: {points}p\n"
+                points_log = f"{' ' * (self._align + 2)}Points: {points + 1000}p ({points}p w/o win bonus)\n"\
+                    if team == winning_team else f"{' ' * (self._align + 2)}Points: {points}p\n"
 
             player_stats = (
                 f"{points_log}"

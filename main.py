@@ -7,13 +7,12 @@ import xml.etree.ElementTree as ElementTree
 from datetime import datetime
 from urllib.request import Request, urlopen
 
+from data import Pointers, Offsets, PlayerInfo
+from match_logger import MatchLogger
 from tcpgecko import TCPGecko
 from tcpgecko_aroma import TCPGeckoAroma
-from match_logger import MatchLogger
-from data import Pointers, Offsets, PlayerInfo
 
 _VERSION: str = "1.4a"
-_VALID_ARGS: list[str] = ["log", "silent", "stats", "auto", "auto-latest", "aroma"]
 
 
 def main(args: list[str]) -> None:
@@ -32,7 +31,7 @@ def main(args: list[str]) -> None:
     """
 
     def splatlog(match_count: int) -> None:
-        epic_fail: bool = False
+        request_fail: bool = False
         session_id: int = 0
         player_count: int = 8  # Default to 8 to log all players from the last match.
         main_mgr_base_adr: int = gecko.peek32(Pointers.MAIN_MGR_BASE)
@@ -46,7 +45,8 @@ def main(args: list[str]) -> None:
 
         if main_mgr_base_adr != 0:
             player_mgr_adr: int = gecko.peek32(main_mgr_base_adr + Offsets.PLAYER_MGR)
-            player_count = gecko.peek8(player_mgr_adr + Offsets.PLAYER_COUNT)
+            if player_mgr_adr != 0:
+                player_count = gecko.peek8(player_mgr_adr + Offsets.PLAYER_COUNT)
         else:
             print(
                 "You are currently not in a match. Logging previous match data "
@@ -60,38 +60,30 @@ def main(args: list[str]) -> None:
 
             player_pid: int = int.from_bytes(player_info_raw[0xD0:0xD4], byteorder="big")
             if player_pid != 0:
-                player_name: str = (
-                    player_info_raw[0x6:0x26]
-                    .decode("utf-16-be")
-                    .split("\u0000")[0]
-                    .replace("\n", "")
-                    .replace("\r", "")
-                )
+                player_name: str = (player_info_raw[0x6:0x26]
+                                    .decode("utf-16-be")
+                                    .split("\u0000")[0]
+                                    .replace("\n", "")
+                                    .replace("\r", ""))
 
                 player_pnid: str = ""
                 player_mii_name: str = ""
-                req: Request = Request(
-                    f"https://account.pretendo.cc/v1/api/miis?pids={player_pid}",
-                    headers={
-                        "X-Nintendo-Client-ID": "a2efa818a34fa16b8afbc8a74eba3eda",
-                        "X-Nintendo-Client-Secret": "c91cdb5658bd4954ade78533a339cf9a",
-                    },
-                )
+                req: Request = Request(f"https://account.pretendo.cc/v1/api/miis?pids={player_pid}",
+                                       headers={"X-Nintendo-Client-ID": "a2efa818a34fa16b8afbc8a74eba3eda",
+                                                "X-Nintendo-Client-Secret": "c91cdb5658bd4954ade78533a339cf9a"})
                 try:
-                    response: ElementTree.Element[str] = ElementTree.fromstring(
-                        urlopen(req)
-                        .read()
-                        .decode("utf-8")
-                    )
+                    response: ElementTree.Element[str] = ElementTree.fromstring(urlopen(req)
+                                                                                .read()
+                                                                                .decode("utf-8"))
+                    assert (isinstance(response[0].find("user_id"), ElementTree.Element) and
+                            isinstance(response[0].find("name"), ElementTree.Element))
                     player_pnid = response[0].find("user_id").text  # type: ignore
-                    player_mii_name = (
-                        response[0].find("name")  # type: ignore
-                        .text
-                        .replace("\n", "")
-                        .replace("\r", "")
-                    )  # Always get the real mii name in case a player used name changer.
-                except urllib.error.URLError:
-                    epic_fail = True
+                    player_mii_name = (response[0].find("name")  # type: ignore
+                                       .text
+                                       .replace("\n", "")
+                                       .replace("\r", ""))
+                except (urllib.error.URLError, AssertionError):
+                    request_fail = True
 
                 if logging_enabled:
                     player_info: PlayerInfo = PlayerInfo(
@@ -130,7 +122,7 @@ def main(args: list[str]) -> None:
 
         if not silent_logging:
             print()
-            if epic_fail:
+            if request_fail:
                 print("Failed to get account data for one or more players.\n")
 
             if session_id != 0:
@@ -153,37 +145,29 @@ def main(args: list[str]) -> None:
     if len(args) > 1:
         arg: str
         for arg in args[1:]:
-            if arg not in _VALID_ARGS:
-                print(f"Invalid argument: {arg}")
-
-        if "log" in args[1:]:
-            logging_enabled = True
-
-        if "silent" in args[1:]:
-            silent_logging = True
-
-        if "stats" in args[1:]:
-            log_stats = True
-
-        if "auto" in args[1:]:
-            logging_enabled = True
-            auto_logging = True
-
-        if "auto-latest" in args[1:]:
-            logging_enabled = True
-            auto_logging = True
-            log_latest = True
-
-        if "aroma" in args[1:]:
-            aroma = True
+            match arg:
+                case "log":
+                    logging_enabled = True
+                case "silent":
+                    silent_logging = True
+                case "stats":
+                    log_stats = True
+                case "auto":
+                    logging_enabled = True
+                    auto_logging = True
+                case "auto-latest":
+                    logging_enabled = True
+                    auto_logging = True
+                    log_latest = True
+                case "aroma":
+                    aroma = True
+                case _:
+                    print(f"Invalid argument: {arg}")
 
     gecko: TCPGecko
     try:
         print(f"Connecting to: {args[0]}")
-        if aroma:
-            gecko = TCPGeckoAroma(args[0])
-        else:
-            gecko = TCPGecko(args[0])
+        gecko = TCPGeckoAroma(args[0]) if aroma else TCPGecko(args[0])
     except IndexError:
         print("No IP address was provided.")
         exit()
@@ -229,9 +213,7 @@ def main(args: list[str]) -> None:
                 if main_mgr_vs_game_adr == 0:
                     match_in_progress = False
 
-                if (
-                    not match_in_progress and main_mgr_vs_game_adr != 0
-                ):  # Trigger logging when MainMgrVSGame is loaded.
+                if not match_in_progress and main_mgr_vs_game_adr != 0:  # Trigger logging when MainMgrVSGame is loaded.
                     match_in_progress = True
                     session_adr = gecko.peek32(Pointers.SESSION)
                     count += 1
@@ -242,8 +224,8 @@ def main(args: list[str]) -> None:
                     if not silent_logging:
                         print(f"\nMatch {count}\n")
 
-                    time.sleep(1)  # Wait a bit after the scene changes for the match to load.
-                    splatlog(match_count=count)
+                    time.sleep(1)
+                    splatlog(count)
 
                 time.sleep(10)
             except KeyboardInterrupt:
