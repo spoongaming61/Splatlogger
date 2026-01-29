@@ -1,27 +1,32 @@
 # Splatlogger
-CLI Python program for logging the info of players you've played with in Splatoon matches using TCPGecko.
+A PID/PNID grabber and match logger for Splatoon using TCPGecko.
 
 ## Usage
-
 You'll need a modded Wii U running either [TCPGecko](https://github.com/BullyWiiPlaza/tcpgecko) (Geckiine or SDGeckiine will work as well) or the [TCPGecko Aroma plugin](https://github.com/spoongaming61/TCPGeckoAroma), as well as Python 3.11 or newer installed on your system.
 
-Run `python /path/to/Splatlogger/main.py IP [options]` where `IP` is your Wii U's LAN IP address.
+Download the latest release and install it. `python -m pip install path/to/Splatlogger-1.x.zip`
+
+Then run `splatlogger -ip IP [options]` where `IP` is your Wii U's LAN IP address.
 
 Options:
+- `-log-level [option]` - Set how much data should be logged.
+  - `none` - Don't create a log file (default).
+  - `basic` - Log only basic player information (name, PID, PNID, region).
+  - `full` - Log all player information (basic + team, level, rank, appearance, gear, weapons).
+  - `stats` - Log all player information and player stats (points, kills, deaths).
 
-* ```log``` - Write full match log to file.
+- `-auto [option]` - Enable auto logging. When enabled will automatically log every match you play (log level must be at least `basic`).
+  - `all` - Save a log of all matches you play (default).
+  - `latest` - Save a log of only the latest match
 
-* ```silent``` - Don't print logs to the console.
+- `-aroma` - Enable Aroma mode.
 
-* ```stats``` - Enable logging of player stats (points, kills, deaths, win/loss). Requires the match to complete to finish logging, also makes logging slower.
+- `-silent` - Disable printing logs to the console.
 
-* ```auto``` - Enable auto logging. When enabled will automatically log every match you play.
+Logs are saved within your documents folder in `Splatlogger/logs/[date]`.
 
-* ```auto-latest``` - Same as above but will save only the latest match you played.
-
-* ```aroma``` - Enable Aroma mode.
-
-Running with just the IP address will print player PIDs, PNIDs and names to the console without logging.
+To always run with the same IP and options, create an `args.txt` file in the Splatlogger directory and put all the arguments in there.
+Afterward run `splatlogger` without any arguments.
 
 Only one program can be connected to TCPGecko at a time. If you have something else connected, disconnect it before running Splatlogger.
 

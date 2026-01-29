@@ -44,10 +44,10 @@ class TCPGecko:
             raise TCPGeckoException("Reading memory requires a length (# of bytes).")
 
         if not self._valid_range(address, length):
-            raise TCPGeckoException("Address range is not valid.")
+            raise TCPGeckoException(f"Address 0x{address:X} is outside the valid range.")
 
         if not self._valid_access(address, length, access="read"):
-            raise TCPGeckoException("Cannot read from address.")
+            raise TCPGeckoException(f"Cannot read from address 0x{address:X}.")
 
         ret: bytes = b""
         request: bytes

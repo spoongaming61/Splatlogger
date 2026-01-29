@@ -2,20 +2,22 @@
 
 import os
 import time
+import userpaths  # type: ignore[import-untyped]
 from datetime import datetime
 
-from data import Pointers, Addresses, Offsets, PlayerInfo, Names
-from tcpgecko import TCPGecko
+from .data import Pointers, Addresses, Offsets, PlayerInfo, Names
+from .tcpgecko import TCPGecko
 
 
 class MatchLogger:
     """Provides the match logging functionality of Splatlogger."""
 
-    def __init__(self, gecko: TCPGecko, auto_logging: bool, log_stats: bool, aroma: bool,
+    def __init__(self, gecko: TCPGecko, log_level: str, auto_logging: bool, aroma: bool,
                  static_mem_adr: int) -> None:
         self._gecko: TCPGecko = gecko
+        self._log_path: str = userpaths.get_my_documents() + "/Splatlogger/logs"
+        self._log_level: str = log_level
         self._auto_logging: bool = auto_logging
-        self._log_stats: bool = log_stats
         self._static_mem_adr: int = static_mem_adr
         self._date: datetime = datetime.now()
         self._align: int = 2 if auto_logging else 0
@@ -26,8 +28,8 @@ class MatchLogger:
     def create_new_log(self) -> None:
         """Initialize a new log file."""
 
-        if not os.path.isdir(f"./logs/{self._date.strftime('%Y-%m-%d')}"):
-            os.makedirs(f"./logs/{self._date.strftime('%Y-%m-%d')}")
+        if not os.path.isdir(f"{self._log_path}/{self._date.strftime('%Y-%m-%d')}"):
+            os.makedirs(f"{self._log_path}/{self._date.strftime('%Y-%m-%d')}")
 
         self._write_log(log=f"Splatlogger log from {self._date.strftime('%Y-%m-%d %H:%M:%S')}\n", mode="w")
 
@@ -35,52 +37,59 @@ class MatchLogger:
         """Write player and match data to the log file."""
 
         match_log: str = ""
-
         for player_info in player_info_list:
             if player_info.index == 0:
                 match_log += self._new_match(session_id, match_count)
 
-            appearance: str = (
-                f"Gender: {Names.GENDER_NAME.get(player_info.gender, 'Unknown')} ({player_info.gender}), "
-                f"Skin tone: {player_info.skin_tone}, "
-                f"Eye color: {Names.EYE_COLOR_NAME.get(player_info.eye_color, 'Unknown')} ({player_info.eye_color})"
-            )
-            gear: str = (
-                f"Headgear: {Names.HEADGEAR_NAME.get(player_info.headgear, 'Unknown')} ({player_info.headgear}), "
-                f"Clothes: {Names.CLOTHES_NAME.get(player_info.clothes, 'Unknown')} ({player_info.clothes}), "
-                f"Shoes: {Names.SHOES_NAME.get(player_info.shoes, 'Unknown')} ({player_info.shoes})"
-            )
-            weapons: str = (
-                f"Main: {Names.WEAPON_NAME.get(player_info.weapon, 'Unknown')} ({player_info.weapon}), "
-                f"Sub: {Names.SUB_WEAPON_NAME.get(player_info.sub_weapon, 'Unknown')} ({player_info.sub_weapon}), "
-                f"Special: {Names.SPECIAL_WEAPON_NAME.get(player_info.special_weapon, 'Unknown')} "
-                f"({player_info.special_weapon})"
-            )
-
-            match_log += (
+            basic_info: str = (
                 f"\n{' ' * self._align}[Player {player_info.index + 1}]\n"
                 f"{' ' * (self._align + 2)}Name: {player_info.name}"
                 f"{' (Mii name: ' + player_info.mii_name + ')' if player_info.name != player_info.mii_name else ''}\n"
                 f"{' ' * (self._align + 2)}PID: {player_info.pid:X} ({player_info.pid})\n"
                 f"{' ' * (self._align + 2)}PNID: {player_info.pnid}\n"
                 f"{' ' * (self._align + 2)}Region: {player_info.region}\n"
+            )
+            extra_info: str = (
                 f"{' ' * (self._align + 2)}Team: {Names.TEAM_NAME.get(player_info.team, 'Unknown')} "
                 f"({player_info.team})\n"
                 f"{' ' * (self._align + 2)}Level: {player_info.level}\n"
                 f"{' ' * (self._align + 2)}Rank: {Names.RANK_NAME.get(player_info.rank, 'Unknown')} "
                 f"({player_info.rank})\n"
-                f"{' ' * (self._align + 2)}Appearance: {appearance}\n"
-                f"{' ' * (self._align + 2)}Gear: {gear}\n"
-                f"{' ' * (self._align + 2)}Weapons: {weapons}\n"
+            )
+            appearance: str = (
+                f"{' ' * (self._align + 2)}Appearance: Gender: {Names.GENDER_NAME.get(player_info.gender, 'Unknown')} "
+                f"({player_info.gender}), "
+                f"Skin tone: {player_info.skin_tone}, "
+                f"Eye color: {Names.EYE_COLOR_NAME.get(player_info.eye_color, 'Unknown')} ({player_info.eye_color})\n"
+            )
+            gear: str = (
+                f"{' ' * (self._align + 2)}Gear: Headgear: {Names.HEADGEAR_NAME.get(player_info.headgear, 'Unknown')} "
+                f"({player_info.headgear}), "
+                f"Clothes: {Names.CLOTHES_NAME.get(player_info.clothes, 'Unknown')} ({player_info.clothes}), "
+                f"Shoes: {Names.SHOES_NAME.get(player_info.shoes, 'Unknown')} ({player_info.shoes})\n"
+            )
+            weapons: str = (
+                f"{' ' * (self._align + 2)}Weapons: Main: {Names.WEAPON_NAME.get(player_info.weapon, 'Unknown')} "
+                f"({player_info.weapon}), "
+                f"Sub: {Names.SUB_WEAPON_NAME.get(player_info.sub_weapon, 'Unknown')} ({player_info.sub_weapon}), "
+                f"Special: {Names.SPECIAL_WEAPON_NAME.get(player_info.special_weapon, 'Unknown')} "
+                f"({player_info.special_weapon})\n"
             )
 
-            if self._log_stats and not self._disconnect:
-                match_log += self._get_stats(player_info.team, player_info)
+            match self._log_level:
+                case "basic":
+                    match_log += basic_info
+                case "full":
+                    match_log += basic_info + extra_info + appearance + gear + weapons
+                case "stats" if not self._disconnect:
+                    match_log += (basic_info + extra_info + appearance + gear + weapons +
+                                  self._get_stats(player_info.team, player_info))
 
         self._write_log(log=match_log, mode="a")
 
     def _write_log(self, log: str, mode: str) -> None:
-        with open(f"./logs/{self._date.strftime('%Y-%m-%d')}/{self._date.strftime('%Y-%m-%d %H-%M-%S')} log.txt",
+        with open(f"{self._log_path}/{self._date.strftime('%Y-%m-%d')}/"
+                  f"{self._date.strftime('%Y-%m-%d %H-%M-%S')} log.txt",
                   mode, encoding="utf-8") as f:
             f.write(log)
 

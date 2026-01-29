@@ -20,7 +20,7 @@ class Offsets(IntEnum):
     PLAYER_INFO_ARY = 0x10
     PLAYER_MGR = 0x268
     PLAYER_COUNT = 0x320
-    SESSION_IDX = 0xBD
+    SESSION_ID_IDX = 0xBD
     SESSION_ID = 0xCC
     MATCH_HOUR = 0x234
     VERSUS_MODE = 0x238
