@@ -6,7 +6,7 @@ You'll need a modded Wii U running either [TCPGecko](https://github.com/BullyWii
 
 Download the latest release and install it. `python -m pip install path/to/Splatlogger-1.x.zip`
 
-Then run `splatlogger -ip IP [options]` where `IP` is your Wii U's LAN IP address.
+Then run `splatlogger -ip IP [options]` (or `python -m splatlogger -ip IP [options]`) where `IP` is your Wii U's LAN IP address.
 
 Options:
 - `-log-level [option]` - Set how much data should be logged.
