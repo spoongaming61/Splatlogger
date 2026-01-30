@@ -9,7 +9,11 @@ On Tiramisu, use [TCPGecko](https://github.com/BullyWiiPlaza/tcpgecko) (Geckiine
 On Aroma, install the [TCPGecko Aroma plugin](https://github.com/spoongaming61/TCPGeckoAroma).
 
 ## Installation and Usage
-Download the latest release and install it using pip:
+Install the package from PyPI:
+
+`python -m pip install Splatlogger`
+
+Or download and install the latest release from GitHub:
 
 `python -m pip install /path/to/Splatlogger-1.x.zip`
 
