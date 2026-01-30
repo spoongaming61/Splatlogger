@@ -6,14 +6,14 @@ build-backend = "setuptools.build_meta"
 name = "Splatlogger"
 version = "1.5"
 authors = [
-    { name="Shadow Doggo" }
+    { name="Shadow Doggo", email="shadowdoggo@protonmail.com" }
 ]
 description = "A PID/PNID grabber and match logger for Splatoon using TCPGecko."
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
-    "userpaths>=0.1.3",
-    "requests>=2.32.5"
+    "userpaths",
+    "requests"
 ]
 classifiers = [
     "Programming Language :: Python :: 3",
@@ -29,4 +29,5 @@ license-files = ["LICENSE"]
 splatlogger = "splatlogger.__main__:main"
 
 [tool.setuptools.packages.find]
-where = ["./src"]
+where = ["src"]
+include = ["splatlogger*"]
