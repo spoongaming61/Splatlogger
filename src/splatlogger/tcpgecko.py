@@ -29,7 +29,6 @@ import struct
 
 class TCPGecko:
     """Python library for use with TCPGecko."""
-
     def __init__(self, ip: str, *, port: int=7331, timeout: int=10) -> None:
         self._socket: socket.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM, socket.IPPROTO_TCP)
         self._socket.settimeout(timeout)
@@ -39,7 +38,6 @@ class TCPGecko:
         """Read raw memory starting at address and ending at address + length.
         Returns a bytes object.
         """
-
         if length == 0:
             raise TCPGeckoException("Reading memory requires a length (# of bytes).")
 
@@ -98,27 +96,22 @@ class TCPGecko:
 
     def peek8(self, address: int, *, signed: bool=False) -> int:
         """Get an 8-bit integer value stored at the specified address."""
-
         return int.from_bytes(self.peek_raw(address + 0x3, length=0x1), byteorder="big", signed=signed)
 
     def peek16(self, address: int, *, signed: bool=False) -> int:
         """Get a 16-bit integer value stored at the specified address."""
-
         return int.from_bytes(self.peek_raw(address + 0x2, length=0x2), byteorder="big", signed=signed)
 
     def peek32(self, address: int, *, signed: bool=False) -> int:
         """Get a 32-bit integer value stored at the specified address."""
-
         return int.from_bytes(self.peek_raw(address, length=0x4), byteorder="big", signed=signed)
 
     def peek_float(self, address: int) -> float:
         """Get a floating point value stored at the specified address."""
-
         return struct.unpack(">f", self.peek_raw(address, length=0x4))[0]
 
     def read_string(self, address: int, *, strlen: int=1, encoding: str="utf-8") -> str:
         """Read a string of text starting at the specified address."""
-
         return self.peek_raw(address, length=strlen).decode(encoding)
 
     @staticmethod

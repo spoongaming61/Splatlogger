@@ -1,7 +1,7 @@
 # Splatlogger (c) 2025 Shadow Doggo.
 
-from dataclasses import dataclass
 from enum import IntEnum
+from typing import NamedTuple
 
 
 class Pointers(IntEnum):
@@ -41,9 +41,8 @@ class Offsets(IntEnum):
     SPECIAL_WEAPON = 0x4C
 
 
-@dataclass
-class PlayerInfo:
-    index: int
+class PlayerInfo(NamedTuple):
+    idx: int
     pid: int
     pnid: str
     name: str

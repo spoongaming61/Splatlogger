@@ -2,8 +2,9 @@
 
 import os
 import time
-import userpaths  # type: ignore[import-untyped]
 from datetime import datetime
+
+import userpaths  # type: ignore[import-untyped]
 
 from .data import Pointers, Addresses, Offsets, PlayerInfo, Names
 from .tcpgecko import TCPGecko
@@ -11,7 +12,6 @@ from .tcpgecko import TCPGecko
 
 class MatchLogger:
     """Provides the match logging functionality of Splatlogger."""
-
     def __init__(self, gecko: TCPGecko, log_level: str, auto_logging: bool, aroma: bool,
                  static_mem_adr: int) -> None:
         self._gecko: TCPGecko = gecko
@@ -27,7 +27,6 @@ class MatchLogger:
 
     def create_new_log(self) -> None:
         """Initialize a new log file."""
-
         if not os.path.isdir(f"{self._log_path}/{self._date.strftime('%Y-%m-%d')}"):
             os.makedirs(f"{self._log_path}/{self._date.strftime('%Y-%m-%d')}")
 
@@ -35,14 +34,13 @@ class MatchLogger:
 
     def log_match(self, session_id: int, match_count: int, player_info_list: list[PlayerInfo]) -> None:
         """Write player and match data to the log file."""
-
         match_log: str = ""
         for player_info in player_info_list:
-            if player_info.index == 0:
+            if player_info.idx == 0:
                 match_log += self._new_match(session_id, match_count)
 
             basic_info: str = (
-                f"\n{' ' * self._align}[Player {player_info.index + 1}]\n"
+                f"\n{' ' * self._align}[Player {player_info.idx + 1}]\n"
                 f"{' ' * (self._align + 2)}Name: {player_info.name}"
                 f"{' (Mii name: ' + player_info.mii_name + ')' if player_info.name != player_info.mii_name else ''}\n"
                 f"{' ' * (self._align + 2)}PID: {player_info.pid:X} ({player_info.pid})\n"
@@ -122,7 +120,7 @@ class MatchLogger:
         stats: bytes = self._gecko.peek_raw(Addresses.STATS - self._stats_offset, length=0x124)
 
         # Buffer player 1 data until stats are updated.
-        if player_info.index == 0:
+        if player_info.idx == 0:
             while self._gecko.peek_raw(Addresses.STATS - self._stats_offset, length=0x124) == stats:
                 if self._gecko.peek32(Pointers.MAIN_MGR_VS_GAME) == 0:  # Fallback in case the match is not finished.
                     self._disconnect = True
@@ -133,7 +131,7 @@ class MatchLogger:
         if not self._disconnect:
             winning_team: int = self._gecko.peek8(Addresses.WIN_TEAM - self._stats_offset)
             stats = self._gecko.peek_raw(Addresses.STATS - self._stats_offset, length=0x124)
-            offset: int = player_info.index * 0x20
+            offset: int = player_info.idx * 0x20
             points: int = int.from_bytes(stats[offset + 0x3A:offset + 0x3C], byteorder="big")
             kills: int = int.from_bytes(stats[offset + 0x3E:offset + 0x40], byteorder="big")
             deaths: int = int.from_bytes(stats[offset + 0x42:offset + 0x44], byteorder="big")

@@ -5,7 +5,6 @@ from .tcpgecko import TCPGecko, TCPGeckoException
 
 class TCPGeckoAroma(TCPGecko):
     """Extends pyGecko to add TCPGeckoAroma support."""
-
     def __init__(self, ip: str, *, port: int=7332, timeout: int=10) -> None:
         super().__init__(ip, port=port, timeout=timeout)
 
@@ -13,7 +12,6 @@ class TCPGeckoAroma(TCPGecko):
         """Read raw memory starting at address and ending at address + length.
         Returns a bytes object.
         """
-
         if length == 0:
             raise TCPGeckoException("Reading memory requires a length (# of bytes).")
 
@@ -61,7 +59,6 @@ class TCPGeckoAroma(TCPGecko):
 
     def peek8(self, address: int, *, signed: bool=False) -> int:
         """Get an 8-bit integer value stored at the specified address."""
-
         if not self._valid_range(address, length=0x1):
             raise TCPGeckoException(f"Address 0x{address:X} is outside the valid range.")
 
@@ -80,7 +77,6 @@ class TCPGeckoAroma(TCPGecko):
 
     def peek16(self, address: int, *, signed: bool=False) -> int:
         """Get a 16-bit integer value stored at the specified address."""
-
         if not self._valid_range(address, length=0x2):
             raise TCPGeckoException(f"Address 0x{address:X} is outside the valid range.")
 
@@ -99,7 +95,6 @@ class TCPGeckoAroma(TCPGecko):
 
     def peek32(self, address: int, *, signed: bool=False) -> int:
         """Get a 32-bit integer value stored at the specified address."""
-
         if not self._valid_range(address, length=0x4):
             raise TCPGeckoException(f"Address 0x{address:X} is outside the valid range.")
 
@@ -118,7 +113,6 @@ class TCPGeckoAroma(TCPGecko):
 
     def peek_float(self, address: int) -> float:
         """Get a floating point value stored at the specified address."""
-
         if not self._valid_range(address, length=0x4):
             raise TCPGeckoException(f"Address 0x{address:X} is outside the valid range.")
 
