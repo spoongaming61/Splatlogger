@@ -19,7 +19,7 @@ Or download and install the latest release from GitHub:
 python -m pip install /path/to/Splatlogger-1.x.zip
 ```
 
-You can skip the installation and instead run the module directly from source code.
+Alternatively, you can skip the installation and instead run the module directly from the source code.
 
 ## Usage
 Run Splatlogger with:
