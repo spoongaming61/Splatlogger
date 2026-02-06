@@ -77,7 +77,7 @@ class MatchLogger:
             match self._log_level:
                 case "basic":
                     match_log += basic_info
-                case "full":
+                case "full" | "stats" if self._disconnect:
                     match_log += basic_info + extra_info + appearance + gear + weapons
                 case "stats" if not self._disconnect:
                     match_log += (basic_info + extra_info + appearance + gear + weapons +

@@ -17,7 +17,7 @@ from .match_logger import MatchLogger
 from .tcpgecko import TCPGecko, TCPGeckoException
 from .tcpgecko_aroma import TCPGeckoAroma
 
-_VERSION: str = "1.5.1"
+_VERSION: str = "1.5.2"
 
 
 class Options(NamedTuple):
